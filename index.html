@@ -1,0 +1,251 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Dataset Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root { --card:#fff; --line:#dfe6e9; --ink:#2d3436; --mute:#7f8c8d; --accent:#0984e3; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui,Segoe UI,sans-serif; color:var(--ink);
+         background:linear-gradient(120deg,#e8f4f3,#f7fbfc); display:flex; min-height:100vh; }
+  aside { width:230px; flex:none; padding:18px 16px; background:var(--card); border-right:1px solid var(--line); }
+  main { flex:1; padding:18px 24px; min-width:0; }
+  h1 { font-size:16px; margin:0 0 14px; }
+  h2 { font-size:13px; margin:18px 0 6px; color:var(--mute); font-weight:600; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:14px; }
+  .kpi b { display:block; font-size:26px; font-weight:600; margin-top:4px; }
+  .kpi span { color:var(--mute); font-size:12px; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+  nav { border-bottom:1px solid var(--line); margin-bottom:16px; }
+  nav button { background:none; border:0; border-bottom:2px solid transparent; padding:8px 12px;
+               cursor:pointer; font:inherit; color:var(--mute); }
+  nav button.on { color:var(--accent); border-color:var(--accent); }
+  .chips { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px; }
+  .chip { border:1px solid var(--line); border-radius:12px; padding:2px 9px; cursor:pointer;
+          font-size:12px; background:#fff; user-select:none; }
+  .chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #q { width:100%; padding:10px; border:1px solid var(--line); border-radius:6px; font:inherit; }
+  #answer { white-space:pre-wrap; margin-top:14px; min-height:40px; }
+  .ex { color:var(--accent); cursor:pointer; text-decoration:underline; font-size:12px; }
+  canvas { max-height:260px; }
+  button.go { margin-top:8px; padding:8px 18px; border:0; border-radius:6px;
+              background:var(--accent); color:#fff; cursor:pointer; font:inherit; }
+</style>
+
+<aside>
+  <h1>Filters</h1>
+  <div id="filters"></div>
+</aside>
+
+<main>
+  <nav>
+    <button class="on" data-tab="dash">Dashboard</button>
+    <button data-tab="ask">Ask</button>
+  </nav>
+
+  <section id="dash">
+    <div class="kpis" id="kpis"></div>
+    <div class="card"><h2 id="tsTitle">Over time</h2><canvas id="ts"></canvas></div>
+    <div class="row">
+      <div class="card"><h2 id="pieTitle">Composition</h2><canvas id="pie"></canvas></div>
+      <div class="card"><h2 id="barTitle">Top items</h2><canvas id="bar"></canvas></div>
+    </div>
+  </section>
+
+  <section id="ask" hidden>
+    <div class="card">
+      <input id="q" placeholder="Ask a question about the filtered data...">
+      <button class="go" id="send">Ask</button>
+      <div id="examples" style="margin-top:8px"></div>
+      <div id="answer"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+// ---- CSV (handles quoted fields) ----------------------------------------
+function parseCSV(text) {
+  const rows = [[]]; let cell = '', quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else quoted = false; }
+      else cell += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ',') { rows.at(-1).push(cell); cell = ''; }
+    else if (c === '\n') { rows.at(-1).push(cell); cell = ''; rows.push([]); }
+    else if (c !== '\r') cell += c;
+  }
+  rows.at(-1).push(cell);
+  return rows.filter(r => r.length > 1 || r[0] !== '');
+}
+
+const num = v => { const n = +String(v).replace(/[,\s]/g, ''); return v !== '' && isFinite(n) ? n : null; };
+const fmt = n => n.toLocaleString();
+
+let HEAD = [], DATA = [], DATECOL = -1, VALCOL = -1, CATS = [];
+const picked = {};
+
+fetch('data.csv').then(r => r.text()).then(text => {
+  const rows = parseCSV(text);
+  HEAD = rows[0].map(h => h.trim());
+  DATA = rows.slice(1);
+  detectColumns();
+  buildFilters();
+  render();
+});
+
+function detectColumns() {
+  const sample = DATA.slice(0, 50);
+  const isNum = i => sample.every(r => num(r[i]) !== null);
+  const isDate = i => /date|month|year|time|period/i.test(HEAD[i]) ||
+                      sample.every(r => /^\d{4}([-/]\d{1,2}){0,2}$/.test(r[i]));
+  DATECOL = HEAD.findIndex((_, i) => !isNum(i) && isDate(i));
+  if (DATECOL < 0) DATECOL = HEAD.findIndex((_, i) => isDate(i));
+  VALCOL = HEAD.findIndex((_, i) => i !== DATECOL && isNum(i));
+  CATS = HEAD.map((_, i) => i).filter(i =>
+    i !== DATECOL && i !== VALCOL && !isNum(i) &&
+    new Set(DATA.map(r => r[i])).size <= 60);
+}
+
+const uniq = i => [...new Set(DATA.map(r => r[i]))].sort();
+const years = () => [...new Set(DATA.map(r => String(r[DATECOL]).slice(0, 4)))].sort();
+
+function buildFilters() {
+  const box = document.getElementById('filters');
+  const cols = DATECOL >= 0 ? [DATECOL, ...CATS] : CATS;
+  box.innerHTML = cols.map(i =>
+    '<h2>' + HEAD[i] + '</h2><div class="chips" data-col="' + i + '">' +
+    (i === DATECOL ? years() : uniq(i))
+      .map(v => '<span class="chip" data-v="' + v + '">' + v + '</span>').join('') +
+    '</div>').join('');
+  box.onclick = e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    chip.classList.toggle('on');
+    const group = chip.parentElement;
+    picked[group.dataset.col] = [...group.querySelectorAll('.chip.on')].map(c => c.dataset.v);
+    render();
+  };
+}
+
+// empty selection on a column = that column is not filtered (i.e. "all")
+function filtered() {
+  return DATA.filter(r => Object.entries(picked).every(([col, vals]) =>
+    !vals.length || vals.includes(+col === DATECOL ? String(r[col]).slice(0, 4) : r[col])));
+}
+
+// ---- charts --------------------------------------------------------------
+const COLORS = ['#0984e3', '#00b894', '#6c5ce7', '#fdcb6e', '#e17055', '#00cec9', '#d63031', '#636e72'];
+const charts = {};
+
+function draw(id, type, labels, values, titleId, titleText) {
+  document.getElementById(titleId).textContent = titleText;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), {
+    type,
+    data: {
+      labels,
+      datasets: [{
+        label: HEAD[VALCOL], data: values,
+        backgroundColor: type === 'line' ? 'transparent' : COLORS,
+        borderColor: type === 'line' ? COLORS[0] : '#fff',
+        tension: 0.3, pointRadius: 0,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      indexAxis: type === 'bar' ? 'y' : 'x',
+      plugins: { legend: { display: type === 'pie', position: 'right' } },
+    },
+  });
+}
+
+function groupSum(rows, col) {
+  const m = new Map();
+  for (const r of rows) m.set(r[col], (m.get(r[col]) || 0) + (num(r[VALCOL]) || 0));
+  return m;
+}
+
+function render() {
+  const rows = filtered();
+  const total = rows.reduce((s, r) => s + (num(r[VALCOL]) || 0), 0);
+
+  document.getElementById('kpis').innerHTML = [
+    ['Total ' + HEAD[VALCOL], fmt(total)],
+    ['Rows in selection', fmt(rows.length)],
+    ['Distinct ' + (HEAD[CATS[0]] || 'items'), fmt(new Set(rows.map(r => r[CATS[0]])).size)],
+  ].map(kv => '<div class="card kpi"><span>' + kv[0] + '</span><b>' + kv[1] + '</b></div>').join('');
+
+  if (DATECOL >= 0) {
+    const m = groupSum(rows, DATECOL);
+    const keys = [...m.keys()].sort();
+    draw('ts', 'line', keys, keys.map(k => m.get(k)), 'tsTitle',
+         HEAD[VALCOL] + ' by ' + HEAD[DATECOL]);
+  }
+  if (CATS.length) {
+    // fewest categories reads best as a pie, most as a ranked bar
+    const by = [...CATS].sort((a, b) => uniq(a).length - uniq(b).length);
+    const pieCol = by[0], barCol = by.at(-1);
+    const m = groupSum(rows, pieCol);
+    draw('pie', 'pie', [...m.keys()], [...m.values()], 'pieTitle',
+         'Composition by ' + HEAD[pieCol]);
+    const top = [...groupSum(rows, barCol)].sort((a, b) => b[1] - a[1]).slice(0, 10);
+    draw('bar', 'bar', top.map(x => x[0]), top.map(x => x[1]), 'barTitle',
+         'Top ' + HEAD[barCol] + ' in selection');
+  }
+}
+
+// ---- tabs + Ask ----------------------------------------------------------
+document.querySelector('nav').onclick = e => {
+  const tab = e.target.dataset.tab;
+  if (!tab) return;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b === e.target));
+  document.getElementById('dash').hidden = tab !== 'dash';
+  document.getElementById('ask').hidden = tab === 'dash';
+  const ex = document.getElementById('examples');
+  if (!ex.innerHTML) {
+    ex.innerHTML = [
+      'Which ' + (HEAD[CATS[0]] || 'category') + ' has the highest total?',
+      'What is the trend over time?',
+      'Compare the top two items.',
+    ].map(t => '<span class="ex">' + t + '</span>').join(' &nbsp; ');
+  }
+};
+
+document.getElementById('examples').onclick = e => {
+  if (!e.target.classList.contains('ex')) return;
+  document.getElementById('q').value = e.target.textContent;
+  document.getElementById('send').click();
+};
+
+document.getElementById('send').onclick = async () => {
+  const q = document.getElementById('q'), out = document.getElementById('answer'),
+        btn = document.getElementById('send');
+  const question = q.value.trim();
+  if (!question) return;
+  out.textContent = 'Thinking...';
+  btn.disabled = true;
+  const rows = filtered();
+  try {
+    const res = await fetch('/ask', {
+      method: 'POST',
+      body: JSON.stringify({
+        question,
+        schema: HEAD.join(', '),
+        summary: rows.length + ' rows, total ' + HEAD[VALCOL] + ' = ' +
+                 fmt(rows.reduce((s, r) => s + (num(r[VALCOL]) || 0), 0)),
+        rows,
+      }),
+    });
+    out.textContent = (await res.json()).answer;
+  } catch (err) {
+    out.textContent = 'Could not reach the server: ' + err.message;
+  }
+  btn.disabled = false;
+};
+
+document.getElementById('q').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('send').click();
+});
+</script>
