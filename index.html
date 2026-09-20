@@ -3,33 +3,92 @@
 <title>Dataset Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-  :root { --card:#fff; --line:#dfe6e9; --ink:#2d3436; --mute:#7f8c8d; --accent:#0984e3; }
+  :root {
+    --bg:#23292b;          /* app background */
+    --panel:#2e3639;       /* panel body */
+    --head:#333c3f;        /* panel header bar */
+    --line:#3d484b;
+    --ink:#e6ecec;
+    --mute:#8a999d;
+    --accent:#5fd38d;      /* green */
+    --cyan:#4dc4d8;
+  }
   * { box-sizing: border-box; }
   body { margin:0; font:14px/1.45 system-ui,Segoe UI,sans-serif; color:var(--ink);
-         background:linear-gradient(120deg,#e8f4f3,#f7fbfc); display:flex; min-height:100vh; }
-  aside { width:230px; flex:none; padding:18px 16px; background:var(--card); border-right:1px solid var(--line); }
-  main { flex:1; padding:18px 24px; min-width:0; }
-  h1 { font-size:16px; margin:0 0 14px; }
-  h2 { font-size:13px; margin:18px 0 6px; color:var(--mute); font-weight:600; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; }
-  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:14px; }
-  .kpi b { display:block; font-size:26px; font-weight:600; margin-top:4px; }
-  .kpi span { color:var(--mute); font-size:12px; }
+         background:var(--bg); display:flex; min-height:100vh; }
+
+  aside { width:236px; flex:none; padding:0 0 24px; background:#1d2224;
+          border-right:1px solid #171b1d;
+          position:sticky; top:0; height:100vh; overflow-y:auto; }
+  aside h1 { font-size:12px; letter-spacing:.12em; text-transform:uppercase;
+             color:var(--mute); margin:0; padding:16px 16px 12px;
+             border-bottom:1px solid #171b1d; }
+  aside h2 { font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+             color:var(--mute); font-weight:600; margin:16px 0 7px; padding:0 16px; }
+  #filters { padding-bottom:8px; }
+  main { flex:1; padding:0 20px 24px; min-width:0; }
+
+  /* panels */
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:4px;
+          box-shadow:0 1px 3px rgba(0,0,0,.35); }
+  .card h2 { font-size:11px; letter-spacing:.11em; text-transform:uppercase;
+             color:var(--mute); font-weight:600; margin:0; padding:9px 12px 9px 22px;
+             background:var(--head); border-bottom:1px solid var(--line);
+             border-radius:3px 3px 0 0; position:relative; }
+  .card h2::before { content:""; position:absolute; left:11px; top:50%;
+                     width:5px; height:5px; margin-top:-2px; border-radius:50%;
+                     background:var(--accent); }
+  .card canvas { max-height:270px; }   /* Chart.js owns the inner padding */
+
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+          gap:14px; margin-bottom:14px; }
+  .kpi { padding:16px 18px; }
+  .kpi span { display:block; color:var(--mute); font-size:10px; letter-spacing:.11em;
+              text-transform:uppercase; }
+  .kpi b { display:block; font-size:28px; font-weight:500; margin-top:7px;
+           color:#fff; letter-spacing:-.01em; }
+  .kpi b::before { content:""; display:inline-block; width:6px; height:6px;
+                   border-radius:50%; background:var(--accent); vertical-align:middle;
+                   margin-right:9px; }
   .row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
-  nav { border-bottom:1px solid var(--line); margin-bottom:16px; }
-  nav button { background:none; border:0; border-bottom:2px solid transparent; padding:8px 12px;
-               cursor:pointer; font:inherit; color:var(--mute); }
+
+  /* top bar */
+  nav { display:flex; align-items:center; gap:2px; height:46px; margin-bottom:16px;
+        border-bottom:1px solid var(--line); }
+  nav button { background:none; border:0; border-bottom:2px solid transparent;
+               padding:0 14px; height:100%; cursor:pointer; font:inherit; font-size:13px;
+               color:var(--mute); }
+  nav button:hover { color:var(--ink); }
   nav button.on { color:var(--accent); border-color:var(--accent); }
-  .chips { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px; }
-  .chip { border:1px solid var(--line); border-radius:12px; padding:2px 9px; cursor:pointer;
-          font-size:12px; background:#fff; user-select:none; }
-  .chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
-  #q { width:100%; padding:10px; border:1px solid var(--line); border-radius:6px; font:inherit; }
-  #answer { white-space:pre-wrap; margin-top:14px; min-height:40px; }
-  .ex { color:var(--accent); cursor:pointer; text-decoration:underline; font-size:12px; }
-  canvas { max-height:260px; }
-  button.go { margin-top:8px; padding:8px 18px; border:0; border-radius:6px;
-              background:var(--accent); color:#fff; cursor:pointer; font:inherit; }
+
+  /* filter chips */
+  /* a 33-value column would otherwise run past the fold */
+  .chips { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:4px; padding:0 16px;
+           max-height:186px; overflow-y:auto; }
+  .chip { border:1px solid var(--line); border-radius:3px; padding:3px 9px; cursor:pointer;
+          font-size:12px; background:#272e30; color:var(--mute); user-select:none; }
+  .chip:hover { color:var(--ink); border-color:#4d5a5e; }
+  .chip.on { background:var(--accent); color:#16211b; border-color:var(--accent);
+             font-weight:500; }
+
+  /* ask tab */
+  #ask .card { padding:16px; }
+  #q { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:3px;
+       font:inherit; background:#272e30; color:var(--ink); }
+  #q::placeholder { color:#6d7c80; }
+  #q:focus { outline:none; border-color:var(--accent); }
+  #answer { white-space:pre-wrap; margin-top:16px; min-height:40px; line-height:1.6; }
+  .ex { color:var(--cyan); cursor:pointer; font-size:12px; }
+  .ex:hover { text-decoration:underline; }
+  button.go { margin-top:10px; padding:8px 20px; border:0; border-radius:3px;
+              background:var(--accent); color:#16211b; cursor:pointer; font:inherit;
+              font-weight:500; }
+  button.go:disabled { opacity:.5; cursor:default; }
+
+  ::-webkit-scrollbar { width:9px; height:9px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:#414d51; border-radius:5px; }
+  ::-webkit-scrollbar-thumb:hover { background:#4e5c60; }
 </style>
 
 <aside>
@@ -110,12 +169,13 @@ function detectColumns() {
 
 const uniq = i => [...new Set(DATA.map(r => r[i]))].sort();
 const years = () => [...new Set(DATA.map(r => String(r[DATECOL]).slice(0, 4)))].sort();
+const label = i => String(HEAD[i]).replace(/_/g, ' ');  // site_category -> site category
 
 function buildFilters() {
   const box = document.getElementById('filters');
   const cols = DATECOL >= 0 ? [DATECOL, ...CATS] : CATS;
   box.innerHTML = cols.map(i =>
-    '<h2>' + HEAD[i] + '</h2><div class="chips" data-col="' + i + '">' +
+    '<h2>' + label(i) + '</h2><div class="chips" data-col="' + i + '">' +
     (i === DATECOL ? years() : uniq(i))
       .map(v => '<span class="chip" data-v="' + v + '">' + v + '</span>').join('') +
     '</div>').join('');
@@ -136,7 +196,13 @@ function filtered() {
 }
 
 // ---- charts --------------------------------------------------------------
-const COLORS = ['#0984e3', '#00b894', '#6c5ce7', '#fdcb6e', '#e17055', '#00cec9', '#d63031', '#636e72'];
+const COLORS = ['#5fd38d', '#4dc4d8', '#f0a154', '#8e7cc3', '#e46b6b', '#d9c15e',
+                '#4a9fd4', '#59bfa8'];
+const GRID = '#3a4447', TICK = '#8a999d';
+Chart.defaults.color = TICK;
+Chart.defaults.font.size = 11;
+Chart.defaults.borderColor = GRID;
+
 const charts = {};
 
 function draw(id, type, labels, values, titleId, titleText) {
@@ -148,15 +214,27 @@ function draw(id, type, labels, values, titleId, titleText) {
       labels,
       datasets: [{
         label: HEAD[VALCOL], data: values,
-        backgroundColor: type === 'line' ? 'transparent' : COLORS,
-        borderColor: type === 'line' ? COLORS[0] : '#fff',
-        tension: 0.3, pointRadius: 0,
+        backgroundColor: type === 'line' ? 'rgba(95,211,141,.13)' : COLORS,
+        borderColor: type === 'line' ? COLORS[0] : 'rgba(0,0,0,.25)',
+        borderWidth: type === 'line' ? 2 : 1,
+        fill: type === 'line', tension: 0.3, pointRadius: 0,
+        pointHoverRadius: 4, pointHoverBackgroundColor: COLORS[0],
       }],
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       indexAxis: type === 'bar' ? 'y' : 'x',
-      plugins: { legend: { display: type === 'pie', position: 'right' } },
+      layout: { padding: { top: 14, right: 16, bottom: 10, left: 8 } },
+      scales: type === 'pie' ? {} : {
+        x: { grid: { color: GRID, drawBorder: false }, ticks: { color: TICK } },
+        y: { grid: { color: GRID, drawBorder: false }, ticks: { color: TICK } },
+      },
+      plugins: {
+        legend: { display: type === 'pie', position: 'right',
+                  labels: { color: TICK, boxWidth: 10, boxHeight: 10, padding: 10 } },
+        tooltip: { backgroundColor: '#1d2224', borderColor: GRID, borderWidth: 1,
+                   titleColor: '#fff', bodyColor: '#e6ecec', padding: 9 },
+      },
     },
   });
 }
@@ -172,16 +250,16 @@ function render() {
   const total = rows.reduce((s, r) => s + (num(r[VALCOL]) || 0), 0);
 
   document.getElementById('kpis').innerHTML = [
-    ['Total ' + HEAD[VALCOL], fmt(total)],
+    ['Total ' + label(VALCOL), fmt(total)],
     ['Rows in selection', fmt(rows.length)],
-    ['Distinct ' + (HEAD[CATS[0]] || 'items'), fmt(new Set(rows.map(r => r[CATS[0]])).size)],
+    ['Distinct ' + (CATS.length ? label(CATS[0]) : 'items'), fmt(new Set(rows.map(r => r[CATS[0]])).size)],
   ].map(kv => '<div class="card kpi"><span>' + kv[0] + '</span><b>' + kv[1] + '</b></div>').join('');
 
   if (DATECOL >= 0) {
     const m = groupSum(rows, DATECOL);
     const keys = [...m.keys()].sort();
     draw('ts', 'line', keys, keys.map(k => m.get(k)), 'tsTitle',
-         HEAD[VALCOL] + ' by ' + HEAD[DATECOL]);
+         label(VALCOL) + ' by ' + label(DATECOL));
   }
   if (CATS.length) {
     // fewest categories reads best as a pie, most as a ranked bar
@@ -189,10 +267,10 @@ function render() {
     const pieCol = by[0], barCol = by.at(-1);
     const m = groupSum(rows, pieCol);
     draw('pie', 'pie', [...m.keys()], [...m.values()], 'pieTitle',
-         'Composition by ' + HEAD[pieCol]);
+         'Composition by ' + label(pieCol));
     const top = [...groupSum(rows, barCol)].sort((a, b) => b[1] - a[1]).slice(0, 10);
     draw('bar', 'bar', top.map(x => x[0]), top.map(x => x[1]), 'barTitle',
-         'Top ' + HEAD[barCol] + ' in selection');
+         'Top ' + label(barCol) + ' in selection');
   }
 }
 
@@ -203,10 +281,12 @@ document.querySelector('nav').onclick = e => {
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b === e.target));
   document.getElementById('dash').hidden = tab !== 'dash';
   document.getElementById('ask').hidden = tab === 'dash';
+  // a canvas sized while hidden comes back 0px high, so redraw on the way in
+  if (tab === 'dash') render();
   const ex = document.getElementById('examples');
   if (!ex.innerHTML) {
     ex.innerHTML = [
-      'Which ' + (HEAD[CATS[0]] || 'category') + ' has the highest total?',
+      'Which ' + (CATS.length ? label(CATS[0]) : 'category') + ' has the highest total?',
       'What is the trend over time?',
       'Compare the top two items.',
     ].map(t => '<span class="ex">' + t + '</span>').join(' &nbsp; ');
@@ -233,7 +313,7 @@ document.getElementById('send').onclick = async () => {
       body: JSON.stringify({
         question,
         schema: HEAD.join(', '),
-        summary: rows.length + ' rows, total ' + HEAD[VALCOL] + ' = ' +
+        summary: rows.length + ' rows, total ' + label(VALCOL) + ' = ' +
                  fmt(rows.reduce((s, r) => s + (num(r[VALCOL]) || 0), 0)),
         rows,
       }),
