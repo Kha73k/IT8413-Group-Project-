@@ -43,11 +43,12 @@ republishing them. Each one can be downloaded from the URL in `SOURCES.csv`.
 
 ## Draft test set
 
-[`evaluation/test_set.csv`](evaluation/test_set.csv) holds 30 questions with answers and exact
-source locations: 7 document-only, 7 combined, 6 unanswerable, 4 counter-intuitive and
-6 direct lookups. They are split into 15 development and 15 held-out questions.
-[`evaluation/questions_and_answers.md`](evaluation/questions_and_answers.md) lists 25 of them
-(the brief's minimum) in simple English, with the other 5 as spares.
+[`evaluation/test_set.csv`](evaluation/test_set.csv) holds 25 questions with answers and exact
+source locations: 6 document-only, 6 combined, 5 unanswerable, 3 counter-intuitive and
+5 direct lookups. They are split into 13 development and 12 held-out questions. Each one is a
+question a client could ask an adviser, and together they use all eight sources.
+[`evaluation/questions_and_answers.md`](evaluation/questions_and_answers.md) lists them in
+simple English.
 
 - Data answers are calculated by [`evaluation/build_test_set.py`](evaluation/build_test_set.py)
   from the files in `sources/data/`, so every figure can be reproduced.
@@ -67,8 +68,8 @@ python evaluation/build_test_set.py
 ## Model
 
 `gemini-3.5-flash-lite` on the Gemini API free tier: 15 requests/min, 250K tokens/min,
-500 requests/day. A full evaluation (control, baseline, v1 and v2 on 30 questions) needs
-about 240 requests.
+500 requests/day. A full evaluation (control, baseline, v1 and v2 on 25 questions) needs
+100 requests; we plan for up to 240 to allow repeat runs.
 
 Measured with Gemini's token counter: pasting every source into one prompt (the baseline
 run) takes 144K tokens. With the portal's duplicate Arabic columns it would be 434K,
