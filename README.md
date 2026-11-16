@@ -1,83 +1,104 @@
-# IT8413 Group Project — Business Location and Licensing (Brief D)
+# IT8413 Group Project: Business Location and Licensing (Brief D)
 
-Khalifa (Kha73k) · Rashed (rashed914) · Ahmed (dudeeturtle-crypto)
+Group G1: Khalifa (Kha73k), Rashed (rashed914), Ahmed (dudeeturtle-crypto)
 
-**Status: proposal stage.** This repository shows the work prepared so far for tutor
-feedback. The tool itself has not been built yet; building starts after the sources
-are approved.
+A web tool for a business support centre in Bahrain. It answers questions about where similar
+businesses operate, what each governorate is like, and which registration and licensing rules
+apply, from published data and documents only.
 
-## The scenario
+## Setup
 
-A business support centre advises people opening a small business in Bahrain. The tool
-answers their three typical questions from published sources:
+Built and tested on Python 3.12.
 
-1. Where do similar businesses already operate?
-2. What is each area like (residents, land use)?
-3. Which registration and licensing rules apply?
+```bash
+pip install -r requirements.txt
+```
 
-## Proposed sources
+**1. API key.** Create a free key in [Google AI Studio](https://aistudio.google.com/apikey), then put it on
+the first line of a file called `api.txt` in this folder, or set the `GEMINI_API_KEY` environment
+variable. `api.txt` is ignored by git. Never put a key anywhere else.
+
+**2. Documents.** Download each document from the page linked in
+[`sources/SOURCES.csv`](sources/SOURCES.csv) into the path in its `local_file` column, under `sources/`. T4 is a web page,
+so print it to PDF from the browser. They are not in this repository because the publishers' terms do not allow
+republishing without permission. The dashboard and data questions work without them. The report, and any question that
+needs a document, stops with a message naming the missing file.
+
+**3. Prepare the data.** This writes `data/` from the raw files in `sources/data/`. The cleaning decisions
+are recorded in [`data/preparation_log.md`](data/preparation_log.md).
+
+```bash
+python prepare_data.py
+```
+
+## Run
+
+```bash
+python app.py
+```
+
+Then open http://localhost:8000. The server only accepts connections from this computer.
+
+- **Dashboard:** filters, summary figures, four charts and a map. Every panel has a table view.
+- **Ask:** questions in one session, with citations you can open and the functions that computed each figure.
+- **Query log:** every question with its answer, citations, latency and tokens, plus the model and settings.
+- **Sources:** publishers, links, retrieval dates, limits of use and the licence statement.
+- **Download area profile:** a report for the current filters and the questions asked in the session.
+
+## Evaluate
+
+`evaluation/test_set.csv` holds the questions, split into development and held-out.
+
+```bash
+python evaluation/run_eval.py --mode control
+python evaluation/run_eval.py --mode baseline
+python evaluation/run_eval.py --mode v1
+python evaluation/build_results.py
+```
+
+These run the development questions only and write `evaluation/results/trial/`. A run that stops can be
+continued with the same command. `--dry-run` shows the plan and sends nothing. The baseline sends every source
+in the prompt, so it runs at about one question a minute.
+
+Held-out questions run only in the final evaluation, and only once every question has been signed in the
+`verified_by` column:
+
+```bash
+python evaluation/run_eval.py --mode v1 --final --label final
+```
+
+`evaluation/retrieval_eval.py` compares retrieval settings on the test set, with no API calls.
+
+## How it works
+
+| File | Role |
+|---|---|
+| `prepare_data.py` | Cleans the four datasets into `data/` |
+| `analytics.py` | Dashboard figures and the report |
+| `retrieval.py` | Splits the documents into passages and searches them (BM25) |
+| `tools.py` | The functions the model can call. Every data figure comes from here |
+| `pipeline.py` | Answers a question in any of the four configurations, checks the answer, writes the log |
+| `llm.py` | Gemini client, paced under the limits, stops when the daily quota is used up |
+| `config.json` | Model, limits, prices, and the settings for v1 and v2 |
+| `app.py`, `index.html` | The web application |
+| `evaluation/` | Test set, run script, retrieval comparison, results spreadsheet |
+
+The app and the evaluation call the same `pipeline.answer()`, so results come from the submitted tool.
+
+## Sources and licence
 
 Full register with publisher, URL, licence and retrieval date: [`sources/SOURCES.csv`](sources/SOURCES.csv).
 
-**Datasets** — Bahrain Open Data Portal, under the Bahrain Open Government Data License
-v1.0. 4,859 rows in total. All four share **governorate**.
+Datasets provided by the Information & eGovernment Authority (iGA) and the Urban Planning and Development
+Authority (UPDA) via www.data.gov.bh are governed by the Bahrain Open Government Data License available at
+www.nea.gov.bh/Documents/OpenDataLicense.pdf. To the fullest extent permitted by law, the government is not
+liable for any damage or loss of any kind caused directly or indirectly by the use or availability of the
+datasets or any derived analyses or applications.
 
-| Dataset | Rows | Publisher |
-|---|---|---|
-| Restaurants & cafes (25 types, 248 blocks) | 2,395 | Information & eGovernment Authority |
-| Other shops (pharmacies, jewellers, furniture, car showrooms, sweets) | 1,024 | Information & eGovernment Authority |
-| Land use by category and governorate (monthly, Jul 2024 – Feb 2026) | 1,120 | Urban Planning & Development Authority |
-| Population by governorate, nationality and sex (2010 – 2025) | 320 | Information & eGovernment Authority |
+All analysis and transformation of the data in this tool is by IT8413 Group G1 and is not attributed to the
+Information and eGovernment Authority or any government entity.
 
-**Documents** — Ministry of Industry and Commerce (MOIC), in English:
+## Use of AI
 
-| Document | Role |
-|---|---|
-| Legislative Decree No. 27 of 2015, Commercial Register | the law |
-| Order No. 126 of 2016, Implementing Regulation | the regulation under that law |
-| Procedures Guide for Establishments and Commercial Companies (2022 edition) | official guidance |
-| Sijilat activity 5610-1, Food and beverage service activities | restaurant-specific requirements |
-
-The PDFs are **not in this repository yet**: we are still confirming MOIC's terms for
-republishing them. Each one can be downloaded from the URL in `SOURCES.csv`.
-
-## Draft test set
-
-[`evaluation/test_set.csv`](evaluation/test_set.csv) holds 30 questions with answers and exact
-source locations: 7 document-only, 7 combined, 6 unanswerable, 4 counter-intuitive and
-6 direct lookups. They are split into 15 development and 15 held-out questions.
-
-- Data answers are calculated by [`evaluation/build_test_set.py`](evaluation/build_test_set.py)
-  from the files in `sources/data/`, so every figure can be reproduced.
-- Every document answer carries a word-for-word quote, and the script checks that each
-  quote appears in the named PDF.
-- **The questions were drafted with AI assistance (Claude) and are not yet verified.**
-  Each group member will check rows against the sources and sign them off in the
-  `verified_by` column before the proposal is submitted.
-
-To rebuild it, put the PDFs in `sources/documents/` (file names are in `SOURCES.csv`) and run:
-
-```
-pip install pypdf
-python evaluation/build_test_set.py
-```
-
-## Model
-
-`gemini-3.5-flash-lite` on the Gemini API free tier: 15 requests/min, 250K tokens/min,
-500 requests/day. A full evaluation (control, baseline, v1 and v2 on 30 questions) needs
-about 240 requests.
-
-Measured with Gemini's token counter: pasting every source into one prompt (the baseline
-run) takes 144K tokens. With the portal's duplicate Arabic columns it would be 434K,
-which is over the per-minute limit. So removing those columns is required, not optional.
-
-**API keys are never committed.** The key goes in `api.txt` (ignored by git) or an
-environment variable.
-
-## Earlier prototype
-
-`index.html`, `app.py`, `prepare_data.py` and `data.csv` are a dashboard prototype built
-before the brief was released, using a heritage-site visitors dataset. It shows the
-planned dashboard style (filters, charts, question box). It will be rebuilt on the Brief D
-datasets with the Gemini model.
+Built with Claude Code, directed by the group. The test questions were first drafted with AI and must be
+verified by a member against the sources before use.

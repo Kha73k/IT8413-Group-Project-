@@ -1,81 +1,133 @@
-"""Dashboard server. Stdlib only - no pip install needed.
+"""Web application: serves the page and the JSON API on this computer only.
 
-  set ANTHROPIC_API_KEY=sk-ant-...
-  python app.py            ->  http://localhost:8000
+    python app.py     ->  http://localhost:8000
+
+Put your Gemini API key in the GEMINI_API_KEY environment variable or on the first line of
+api.txt (git-ignored). See README.md.
 """
-import http.server, json, os, urllib.request, urllib.error
+import http.server
+import json
+import threading
+import urllib.parse
+import uuid
+from pathlib import Path
 
-MODEL = "claude-sonnet-5"
-API_URL = "https://api.anthropic.com/v1/messages"
-MAX_ROWS = 400  # rows of filtered data sent to the model
+import analytics
+import llm
+import pipeline
+
+ROOT = Path(__file__).resolve().parent
+MAX_BODY, MAX_QUESTION = 256_000, 1000
+# Only these files are served. The project folder also holds api.txt, so it must never be served as a directory.
+STATIC = {"/": ("index.html", "text/html; charset=utf-8")}
+
+_sessions, _sessions_lock = {}, threading.Lock()
 
 
-def ask_claude(question, schema, summary, rows):
-    key = os.environ.get("ANTHROPIC_API_KEY")
-    if not key:
-        return "ANTHROPIC_API_KEY is not set. Set it and restart the server."
+def session_turns(session_id):
+    with _sessions_lock:
+        return list(_sessions.get(session_id, []))
 
-    truncated = len(rows) > MAX_ROWS
-    table = "\n".join(",".join(map(str, r)) for r in rows[:MAX_ROWS])
-    prompt = (
-        f"You answer questions about a dataset shown on a dashboard.\n\n"
-        f"Columns: {schema}\n"
-        f"Totals for the current filter selection: {summary}\n"
-        f"{'First ' + str(MAX_ROWS) + ' of ' if truncated else ''}{len(rows)} "
-        f"currently-filtered rows (CSV):\n{table}\n\n"
-        f"Question: {question}\n\n"
-        "Answer in at most 4 sentences using only the data above. "
-        "Cite the numbers you used. If the data cannot answer it, say so."
-    )
-    body = json.dumps({
-        "model": MODEL,
-        "max_tokens": 600,
-        "messages": [{"role": "user", "content": prompt}],
-    }).encode()
-    req = urllib.request.Request(API_URL, data=body, headers={
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-    })
+
+def api_config():
+    cfg = pipeline.config()
+    return {"model": cfg["model"], "limits": cfg["limits"], "pricing": cfg["pricing"], "notes": cfg["notes"],
+            "versions": {"v1": pipeline.settings("v1"), "v2": pipeline.settings("v2")},
+            "varied": pipeline.varied_setting(), "requests_today": pipeline.requests_today(),
+            "key_configured": _key_configured()}
+
+
+def _key_configured():
     try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            return json.load(r)["content"][0]["text"]
-    except urllib.error.HTTPError as e:
-        return f"API error {e.code}: {e.read().decode()[:300]}"
-    except Exception as e:
-        return f"Request failed: {e}"
+        llm.api_key()
+        return True
+    except llm.LLMError:
+        return False
 
 
-class Handler(http.server.SimpleHTTPRequestHandler):
-    def do_POST(self):
-        if self.path != "/ask":
-            return self.send_error(404)
-        try:
-            n = int(self.headers.get("content-length", 0))
-            if n > 2_000_000:
-                raise ValueError("payload too large")
-            p = json.loads(self.rfile.read(n))
-            question = str(p.get("question", "")).strip()
-            if not question:
-                raise ValueError("question is required")
-            answer = ask_claude(question, p.get("schema", ""),
-                                p.get("summary", ""), p.get("rows", []))
-        except Exception as e:
-            answer = f"Bad request: {e}"
-        out = json.dumps({"answer": answer}).encode()
-        self.send_response(200)
-        self.send_header("content-type", "application/json")
-        self.send_header("content-length", str(len(out)))
+def api_ask(body):
+    question = str(body.get("question", "")).strip()
+    mode = body.get("mode", "v1")
+    if not question or len(question) > MAX_QUESTION:
+        raise ValueError(f"question must be 1 to {MAX_QUESTION} characters")
+    if mode not in pipeline.MODES:
+        raise ValueError("unknown mode")
+    if mode == "v2" and not pipeline.varied_setting()["changed"]:
+        raise ValueError("v2 is not defined yet: it is set after the v1 failure analysis")
+    session_id = str(body.get("session_id") or uuid.uuid4().hex)[:64]
+    record = pipeline.answer(question, session_turns(session_id), mode, session_id, run="app")
+    if record["answer"]:
+        with _sessions_lock:
+            _sessions.setdefault(session_id, []).append(record)
+    return record
+
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def send(self, body, status=200, ctype="application/json; charset=utf-8", filename=None):
+        if not isinstance(body, bytes):
+            body = json.dumps(body, ensure_ascii=False).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        if filename:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
         self.end_headers()
-        self.wfile.write(out)
+        self.wfile.write(body)
 
-    def log_message(self, *a):
+    def do_GET(self):
+        url = urllib.parse.urlparse(self.path)
+        query = urllib.parse.parse_qs(url.query)
+        try:
+            if url.path in STATIC:
+                name, ctype = STATIC[url.path]
+                return self.send((ROOT / name).read_bytes(), ctype=ctype)
+            if url.path == "/api/options":
+                return self.send(analytics.options())
+            if url.path == "/api/config":
+                return self.send(api_config())
+            if url.path == "/api/log":
+                return self.send(pipeline.read_log(int(query.get("limit", ["200"])[0])))
+            if url.path == "/api/log/download":
+                data = pipeline.LOG.read_bytes() if pipeline.LOG.exists() else b""
+                return self.send(data, ctype="application/x-ndjson", filename="query_log.jsonl")
+            self.send({"error": "not found"}, 404)
+        except (ValueError, KeyError) as e:
+            self.send({"error": str(e)}, 400)
+        except Exception as e:  # as in do_POST: report the reason, do not drop the connection
+            self.send({"error": f"{type(e).__name__}: {e}"}, 500)
+
+    def do_POST(self):
+        # A web page on another site cannot send application/json here without a preflight this server refuses.
+        if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+            return self.send({"error": "send application/json"}, 415)
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            if not 0 <= length <= MAX_BODY:
+                return self.send({"error": "request too large"}, 413)
+            body = json.loads(self.rfile.read(length) or b"{}")
+            if not isinstance(body, dict):
+                raise ValueError("send a JSON object")
+            if self.path == "/api/dashboard":
+                return self.send(analytics.dashboard(body.get("filters")))
+            if self.path == "/api/ask":
+                return self.send(api_ask(body))
+            if self.path == "/api/report":
+                turns = session_turns(str(body.get("session_id", "")))
+                page = analytics.report_html(body.get("filters"), turns)
+                return self.send(page.encode(), ctype="text/html; charset=utf-8", filename="area_profile.html")
+            self.send({"error": "not found"}, 404)
+        except ValueError as e:
+            self.send({"error": str(e)}, 400)
+        except Exception as e:  # keep the demo alive and show the reason in the page
+            self.send({"error": f"{type(e).__name__}: {e}"}, 500)
+
+    def log_message(self, *args):
         pass
 
 
 if __name__ == "__main__":
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
     print("http://localhost:8000  (Ctrl+C to stop)")
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("note: ANTHROPIC_API_KEY not set - dashboard works, Ask tab won't")
+    if not _key_configured():
+        print("note: no Gemini API key found. The dashboard works; the Ask tab needs a key (see README.md).")
     http.server.ThreadingHTTPServer(("127.0.0.1", 8000), Handler).serve_forever()

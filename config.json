@@ -1,0 +1,36 @@
+{
+  "model": "gemini-3.5-flash-lite",
+  "limits": {
+    "requests_per_minute": 14,
+    "tokens_per_minute": 240000,
+    "requests_per_day": 500,
+    "max_retries": 4,
+    "source": "Google AI Studio rate-limits page for this project, checked 2026-09-29: 15 RPM, 250K TPM, 500 RPD. The client stays one request and 10K tokens under the per-minute caps. Free-tier limits are not guaranteed by Google; if they change, edit these numbers."
+  },
+  "pricing": {
+    "input_usd_per_million_tokens": 0.30,
+    "output_usd_per_million_tokens": 2.50,
+    "source": "https://ai.google.dev/gemini-api/docs/pricing (paid tier, Gemini 3.5 Flash-Lite), checked 2026-09-29. Thinking tokens are billed as output. Used only to estimate cost: the project runs on the free tier."
+  },
+  "versions": {
+    "v1": {
+      "prompt": "v1",
+      "temperature": 1.0,
+      "thinking_level": "minimal",
+      "max_output_tokens": 1024,
+      "top_k": 4,
+      "chunking": "structure",
+      "max_model_calls": 8
+    },
+    "v2": {
+      "base": "v1",
+      "change": {},
+      "reason": "Not decided yet. Set after the v1 failure analysis (PDF 7.5): change exactly one setting, aimed at the failure category with the most failures."
+    }
+  },
+  "notes": {
+    "temperature": "Kept at 1.0 because Google strongly recommends the default for Gemini 3 models (lower values can cause looping). Answers can therefore differ between runs of the same question.",
+    "baseline": "The baseline run uses the v1 prompt rules and generation settings, with every source pasted into the prompt and no retrieval or tools.",
+    "control": "The control run sends the question exactly as asked: no system prompt, no sources, no tools."
+  }
+}
