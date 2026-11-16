@@ -197,7 +197,8 @@ def calculate(expression):
 def search_documents(query, k=4, chunking="structure"):
     hits = retrieval.search(query, k, chunking)
     return {"query": query, "passages": [{"id": p["id"], "document": p["document"], "title": p["title"],
-                                          "page": p["page"], "text": p["text"]} for p in hits]}
+                                          "page": p["page"], "text": p["text"], **({"note": p["note"]} if p["note"] else {})}
+                                         for p in hits]}
 
 
 FUNCTIONS = {f.__name__: f for f in (count_businesses, get_population, get_land_use, calculate, search_documents)}
@@ -243,8 +244,9 @@ def declarations():
                         "required": ["expression"]}},
         {"name": "search_documents",
          "description": "Search the registration and licensing documents (Commercial Register Law No. 27/2015 as "
-                        "amended, Law No. 9/2022, the Implementing Regulation No. 126/2016, the MOIC Procedures Guide, "
-                        "and the Sijilat page for food and beverage activities). Returns passages with ids to cite.",
+                        "amended, Law No. 9/2022, the Implementing Regulation No. 126/2016 and Decision No. 68/2018 amending "
+                        "it, the MOIC Procedures Guide, Legislative Decree No. 28/2020 amending the Commercial Companies "
+                        "Law, and the Sijilat page for food and beverage activities). Returns passages with ids to cite.",
          "parameters": {"type": "object", "properties": {"query": s("What to look for, in plain words")},
                         "required": ["query"]}},
     ]

@@ -27,6 +27,8 @@ WINDOW, OVERLAP = 120, 40
 # Repeated page furniture that is not document content.
 NOISE = re.compile(r"^(moic\.gov\.bh|Registration Directorate|\d{1,2}|\d\d/\d\d/\d{4}, \d\d:\d\d.*|https?://\S+)$")
 ARTICLE = re.compile(r"^Article \((\d+(?: bis| ter)?)\)$")
+# Heading of a replaced or added text inside an amending decree: "Article (261) Paragraph One:".
+AMENDED = re.compile(r"^Article \((\d+(?: ?-? ?bis)?(?: \d)?)\),?(?: Paragraph [\w()]+)?:$")
 WORD = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 STOP = set("a an and are as at be by can for from has have how i if in is it its of on or shall that the their "
            "then there these this to was what when which who will with within do does my me we our you your".split())
@@ -78,7 +80,17 @@ def tokens(text):
 
 def _passage(doc, pid, title, page, lines):
     return {"id": pid, "doc": doc["id"], "document": doc["title"], "title": title, "page": page,
-            "url": doc["url"], "text": " ".join(lines)}
+            "url": doc["url"], "text": " ".join(lines), "note": notes().get(pid)}
+
+
+@lru_cache(maxsize=None)
+def notes():
+    """{passage id: note}. Our own notes on passages that a later law changed (sources/amendments.csv).
+
+    ponytail: notes attach to structure passage ids only, window passages carry none.
+    """
+    with open(ROOT / "sources" / "amendments.csv", encoding="utf-8") as f:
+        return {r["passage_id"]: r["note"] for r in csv.DictReader(f)}
 
 
 def _structure(doc):
@@ -105,7 +117,15 @@ def _structure(doc):
                     skip = i + 1 if title is two else -1
                     break
     else:
-        return [_passage(doc, f"{doc['id']}-P", "Whole document", flat[0][0], [l for _, l in flat])]
+        heads = [i for i, (_, l) in enumerate(flat) if AMENDED.match(l)]
+        if len(heads) < 5:
+            return [_passage(doc, f"{doc['id']}-P", "Whole document", flat[0][0], [l for _, l in flat])]
+        # Amending decree: one passage per replaced or added text, cited by the article it changes.
+        out = [_passage(doc, f"{doc['id']}-A0", "Preamble", flat[0][0], [l for _, l in flat[:heads[0]]])]
+        for i, j in zip(heads, heads[1:] + [len(flat)]):
+            num = re.sub(r"[ -]", "", AMENDED.match(flat[i][1]).group(1))
+            out.append(_passage(doc, f"{doc['id']}-A{num}", flat[i][1].rstrip(":"), flat[i][0], [l for _, l in flat[i:j]]))
+        return out
     out, carry = [], []
     for (i, key), (j, _) in zip(starts, starts[1:] + [(len(flat), None)]):
         chunk = carry + flat[i:j]
@@ -184,4 +204,10 @@ if __name__ == "__main__":
     assert "fifty thousand" in passage("T1-A20")["text"] and "six months" in passage("T1-A20")["text"]
     assert passage("T1-A18bis") and passage("T1-A18ter")
     assert "Bahrain Clear" in passage("T5-P")["text"]
+    assert "refrain from renewing" in passage("T6-P")["text"]
+    assert "owned by one natural or legal person" in passage("T7-A261")["text"]
+    ids = [p["id"] for p in all_passages()]
+    assert len(ids) == len(set(ids)), "passage ids must be unique"
+    assert set(notes()) <= set(ids), "every note must point at a passage"
+    assert passage("T2-A14")["note"] and passage("T2-A15")["note"] is None
     print("retrieval self-checks passed")

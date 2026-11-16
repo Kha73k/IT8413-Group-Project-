@@ -40,7 +40,9 @@ RULES = f"""Rules:
    Never fill a gap from general knowledge.
 3. Population and land use are published by governorate only. Business locations are known by governorate and block.
 4. Follow-up questions refer to the earlier conversation: resolve words like "that", "there" or "what about" from it.
-5. Be brief and plain: the answer first, then the figures and citations that support it. No markdown tables."""
+5. Be brief and plain: the answer first, then the figures and citations that support it. No markdown tables.
+6. A passage can carry a note saying a later law changed it. Tell the user, and answer from the newer passage if
+   the note names one."""
 
 PROMPTS = {
     "v1": f"""You answer questions for advisors at a government business support centre in Bahrain. They use you during
@@ -102,6 +104,7 @@ def baseline_sources():
         w.writerows([r[c] if r[c] is not None else "" for c in cols] for r in d[name])
         parts.append(f"--- {name}.csv ---\n{buf.getvalue()}")
     docs = "\n\n".join(f"[{p['id']}] {p['document']}{', p.' + str(p['page']) if p['page'] else ''}, {p['title']}\n{p['text']}"
+                       + (f"\nNote: {p['note']}" if p["note"] else "")
                        for p in retrieval.all_passages("structure"))
     return "\n".join(parts), docs
 
@@ -200,7 +203,7 @@ def answer(question, history=(), mode="v1", session_id=None, run=None):
         "model": cfg["model"], "settings": shown_settings, "question": question, "answer": text,
         "refused": text.startswith(REFUSAL) if mode != "control" else None,
         "citations": [{"id": p["id"], "document": p["document"], "title": p["title"], "page": p["page"],
-                       "url": p["url"], "text": p["text"], "retrieved": p["id"] in retrieved} for p in citations],
+                       "url": p["url"], "text": p["text"], "note": p["note"], "retrieved": p["id"] in retrieved} for p in citations],
         "invalid_citations": invalid, "unsupported_numbers": unsupported,
         "tool_calls": calls, "latency_s": round(working, 2), "waited_s": round(time.time() - start - working, 2), "requests": requests,
         "retries": retries, "tokens": usage, "cost_usd": round(cost, 6), "error": error,
