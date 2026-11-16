@@ -28,8 +28,8 @@ ANALYSIS_NOTE = ("All analysis and transformation of the data in this tool is by
 LIMITS = ("Figures describe what is registered and published. They do not show whether a business will succeed. "
           "Businesses are from a registration snapshot, so some may have closed. Residents and land use are published "
           "by governorate only, so they cannot describe a block or neighbourhood. Legal documents are English translations for "
-          "guidance: the Arabic text in the Official Gazette is official, and the Implementing Regulation and Procedures "
-          "Guide copies do not include every later change. Confirm licensing requirements with the Ministry of Industry "
+          "guidance: the Arabic text in the Official Gazette is official. Some passages were changed by later laws that exist "
+          "only in Arabic and are not in this collection: those passages carry a note. Confirm licensing requirements with the Ministry of Industry "
           "and Commerce before acting on them.")
 
 
@@ -216,7 +216,7 @@ td.n,th.n{{text-align:right}}.kpis{{display:flex;flex-wrap:wrap;gap:12px}}.kpi{{
 <h2>Land use, {e(d['land']['period'] or 'no data in these years')}</h2>{_bars(land_rows, unit=' km²')}{missing}
 {f'<h2>Questions asked in this session</h2>{qa}' if qa else ''}
 <h2>Rules that may apply: cited passages</h2>
-{''.join(f"<p><b>[{e(p['id'])}] {e(p['document'])}</b>{', page ' + str(p['page']) if p['page'] else ''}, {e(p['title'])}</p><blockquote>{e(p['text'][:900])}{'...' if len(p['text']) > 900 else ''}</blockquote>" for p in passages) or '<p>No passages.</p>'}
+{''.join(f"<p><b>[{e(p['id'])}] {e(p['document'])}</b>{', page ' + str(p['page']) if p['page'] else ''}, {e(p['title'])}</p><blockquote>{e(p['text'][:900])}{'...' if len(p['text']) > 900 else ''}</blockquote>{'<p><b>Note:</b> ' + e(p['note']) + '</p>' if p.get('note') else ''}" for p in passages) or '<p>No passages.</p>'}
 <p class="meta">Passages are chosen by keyword search and may not be complete. Read the full document before relying on them.</p>
 <h2>Limits of use</h2><p>{e(a['limits'])}</p>
 <h2>Sources</h2><table><tr><th>Source</th><th>Publisher</th><th>Retrieved</th></tr>

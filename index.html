@@ -373,7 +373,7 @@ function renderTurn(r) {
   const cited = el('details', {}, el('summary', {textContent: `Cited passages (${r.citations.length})`}),
     r.citations.map(c => {
       const box = el('div', {}, el('p', {class: 'meta', textContent: `[${c.id}] ${c.document}${c.page ? `, page ${c.page}` : ''}, ${c.title}`}),
-        el('blockquote', {class: 'hit', textContent: c.text}), el('a', {href: c.url, target: '_blank', rel: 'noopener', textContent: 'Open the source', style: 'font-size:12px'}));
+        el('blockquote', {class: 'hit', textContent: c.text}), c.note ? el('p', {class: 'err', textContent: 'Note: ' + c.note}) : null, el('a', {href: c.url, target: '_blank', rel: 'noopener', textContent: 'Open the source', style: 'font-size:12px'}));
       details[c.id] = box;
       return box;
     }));
@@ -391,7 +391,7 @@ function renderTurn(r) {
     r.citations.length ? cited : null,
     searches.length ? el('details', {}, el('summary', {textContent: 'All retrieved passages'}), searches.map(s =>
       el('div', {}, el('p', {class: 'meta', textContent: 'Search: ' + s.args.query}), (s.result.passages || []).map(p =>
-        el('blockquote', {class: r.citations.some(c => c.id === p.id) ? 'hit' : '', textContent: `[${p.id}] ${p.title}${p.page ? ` (page ${p.page})` : ''}: ${p.text}`}))))) : null,
+        el('blockquote', {class: r.citations.some(c => c.id === p.id) ? 'hit' : '', textContent: `[${p.id}] ${p.title}${p.page ? ` (page ${p.page})` : ''}: ${p.text}${p.note ? ` [Note: ${p.note}]` : ''}`}))))) : null,
     computed.length ? el('details', {}, el('summary', {textContent: `Computed figures (${computed.length})`}), computed.map(c =>
       el('pre', {textContent: `${c.name}(${JSON.stringify(c.args)})\n${JSON.stringify(c.result, null, 1)}`}))) : null,
     el('p', {class: 'meta', textContent: usage}));
