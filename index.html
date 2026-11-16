@@ -1,331 +1,477 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
-<title>Dataset Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Business Location Advisor</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root {
-    --bg:#23292b;          /* app background */
-    --panel:#2e3639;       /* panel body */
-    --head:#333c3f;        /* panel header bar */
-    --line:#3d484b;
-    --ink:#e6ecec;
-    --mute:#8a999d;
-    --accent:#5fd38d;      /* green */
-    --cyan:#4dc4d8;
+    --bg:#23292b; --panel:#2e3639; --head:#333c3f; --line:#3d484b; --rail:#1d2224;
+    --ink:#e6ecec; --mute:#a3b1b5; --accent:#5fd38d; --mark:#2fa66a; --link:#7fc7ea; --warn:#f0b35a;
   }
-  * { box-sizing: border-box; }
-  body { margin:0; font:14px/1.45 system-ui,Segoe UI,sans-serif; color:var(--ink);
-         background:var(--bg); display:flex; min-height:100vh; }
-
-  aside { width:236px; flex:none; padding:0 0 24px; background:#1d2224;
-          border-right:1px solid #171b1d;
-          position:sticky; top:0; height:100vh; overflow-y:auto; }
-  aside h1 { font-size:12px; letter-spacing:.12em; text-transform:uppercase;
-             color:var(--mute); margin:0; padding:16px 16px 12px;
-             border-bottom:1px solid #171b1d; }
-  aside h2 { font-size:11px; letter-spacing:.09em; text-transform:uppercase;
-             color:var(--mute); font-weight:600; margin:16px 0 7px; padding:0 16px; }
-  #filters { padding-bottom:8px; }
-  main { flex:1; padding:0 20px 24px; min-width:0; }
-
-  /* panels */
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:4px;
-          box-shadow:0 1px 3px rgba(0,0,0,.35); }
-  .card h2 { font-size:11px; letter-spacing:.11em; text-transform:uppercase;
-             color:var(--mute); font-weight:600; margin:0; padding:9px 12px 9px 22px;
-             background:var(--head); border-bottom:1px solid var(--line);
-             border-radius:3px 3px 0 0; position:relative; }
-  .card h2::before { content:""; position:absolute; left:11px; top:50%;
-                     width:5px; height:5px; margin-top:-2px; border-radius:50%;
-                     background:var(--accent); }
-  .card canvas { max-height:270px; }   /* Chart.js owns the inner padding */
-
-  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
-          gap:14px; margin-bottom:14px; }
-  .kpi { padding:16px 18px; }
-  .kpi span { display:block; color:var(--mute); font-size:10px; letter-spacing:.11em;
-              text-transform:uppercase; }
-  .kpi b { display:block; font-size:28px; font-weight:500; margin-top:7px;
-           color:#fff; letter-spacing:-.01em; }
-  .kpi b::before { content:""; display:inline-block; width:6px; height:6px;
-                   border-radius:50%; background:var(--accent); vertical-align:middle;
-                   margin-right:9px; }
-  .row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
-
-  /* top bar */
-  nav { display:flex; align-items:center; gap:2px; height:46px; margin-bottom:16px;
-        border-bottom:1px solid var(--line); }
-  nav button { background:none; border:0; border-bottom:2px solid transparent;
-               padding:0 14px; height:100%; cursor:pointer; font:inherit; font-size:13px;
-               color:var(--mute); }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 system-ui,"Segoe UI",sans-serif; color:var(--ink); background:var(--bg); display:flex; min-height:100vh; }
+  button,select,input { font:inherit; color:inherit; }
+  aside { width:250px; flex:none; background:var(--rail); border-right:1px solid #171b1d; position:sticky; top:0; height:100vh; overflow-y:auto; padding-bottom:24px; }
+  aside h1 { font-size:15px; margin:0; padding:16px; border-bottom:1px solid #171b1d; }
+  aside h1 small { display:block; font-weight:400; color:var(--mute); font-size:12px; }
+  .fgroup { padding:12px 16px 0; }
+  .fgroup h2 { font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--mute); font-weight:600; margin:0 0 6px; }
+  .chips { display:flex; flex-wrap:wrap; gap:5px; max-height:170px; overflow-y:auto; }
+  .chip { border:1px solid var(--line); border-radius:3px; padding:3px 8px; cursor:pointer; font-size:12px; background:#272e30; color:var(--mute); }
+  .chip:hover { color:var(--ink); border-color:#566468; }
+  .chip[aria-pressed=true] { background:var(--accent); color:#16211b; border-color:var(--accent); font-weight:500; }
+  .years { display:flex; gap:8px; align-items:center; color:var(--mute); font-size:12px; }
+  select { background:#272e30; border:1px solid var(--line); border-radius:3px; padding:4px 6px; }
+  .side-actions { padding:16px; display:grid; gap:8px; }
+  .btn { padding:7px 12px; border:1px solid var(--line); border-radius:3px; background:#272e30; cursor:pointer; }
+  .btn:hover { border-color:#566468; }
+  .btn.go { background:var(--accent); border-color:var(--accent); color:#16211b; font-weight:500; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  :focus-visible { outline:2px solid var(--link); outline-offset:1px; }
+  main { flex:1; min-width:0; padding:0 20px 24px; }
+  nav { display:flex; gap:2px; height:46px; margin-bottom:14px; border-bottom:1px solid var(--line); align-items:stretch; }
+  nav button { background:none; border:0; border-bottom:2px solid transparent; padding:0 14px; cursor:pointer; color:var(--mute); }
   nav button:hover { color:var(--ink); }
-  nav button.on { color:var(--accent); border-color:var(--accent); }
-
-  /* filter chips */
-  /* a 33-value column would otherwise run past the fold */
-  .chips { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:4px; padding:0 16px;
-           max-height:186px; overflow-y:auto; }
-  .chip { border:1px solid var(--line); border-radius:3px; padding:3px 9px; cursor:pointer;
-          font-size:12px; background:#272e30; color:var(--mute); user-select:none; }
-  .chip:hover { color:var(--ink); border-color:#4d5a5e; }
-  .chip.on { background:var(--accent); color:#16211b; border-color:var(--accent);
-             font-weight:500; }
-
-  /* ask tab */
-  #ask .card { padding:16px; }
-  #q { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:3px;
-       font:inherit; background:#272e30; color:var(--ink); }
-  #q::placeholder { color:#6d7c80; }
-  #q:focus { outline:none; border-color:var(--accent); }
-  #answer { white-space:pre-wrap; margin-top:16px; min-height:40px; line-height:1.6; }
-  .ex { color:var(--cyan); cursor:pointer; font-size:12px; }
-  .ex:hover { text-decoration:underline; }
-  button.go { margin-top:10px; padding:8px 20px; border:0; border-radius:3px;
-              background:var(--accent); color:#16211b; cursor:pointer; font:inherit;
-              font-weight:500; }
-  button.go:disabled { opacity:.5; cursor:default; }
-
-  ::-webkit-scrollbar { width:9px; height:9px; }
-  ::-webkit-scrollbar-track { background:var(--bg); }
-  ::-webkit-scrollbar-thumb { background:#414d51; border-radius:5px; }
-  ::-webkit-scrollbar-thumb:hover { background:#4e5c60; }
+  nav button[aria-selected=true] { color:var(--accent); border-color:var(--accent); }
+  nav .model { margin-left:auto; align-self:center; color:var(--mute); font-size:12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:4px; }
+  .card > header { display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--head); border-bottom:1px solid var(--line); border-radius:3px 3px 0 0; }
+  .card > header h2 { flex:1; margin:0; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink); font-weight:600; }
+  .card > header button { background:none; border:0; color:var(--link); font-size:12px; cursor:pointer; padding:0; }
+  .sub { color:var(--mute); font-size:12px; padding:8px 12px 0; }
+  .plot { position:relative; height:270px; padding:6px 10px 10px; }
+  .plot.tall { height:420px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:12px; }
+  .kpi { padding:12px 14px; }
+  .kpi span { display:block; color:var(--mute); font-size:12px; }
+  .kpi b { display:block; font-size:26px; font-weight:500; color:#fff; }
+  .kpi small { color:var(--mute); font-size:12px; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+  @media (max-width:980px) { .row { grid-template-columns:1fr; } body { display:block; } aside { position:static; width:auto; height:auto; } }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th,td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mute); font-weight:600; }
+  td.n,th.n { text-align:right; font-variant-numeric:tabular-nums; }
+  .scroll { overflow:auto; max-height:270px; padding:0 8px 8px; }
+  .notice { padding:8px 12px; margin-bottom:12px; font-size:13px; color:var(--mute); border-left:3px solid var(--mark); background:var(--panel); }
+  .empty { color:var(--mute); padding:40px 12px; text-align:center; }
+  .fine { color:var(--mute); font-size:12px; margin:14px 0 0; }
+  a { color:var(--link); }
+  #chat { display:grid; gap:12px; margin-bottom:12px; }
+  .turn { padding:12px 14px; }
+  .turn .q { font-weight:600; margin:0 0 6px; }
+  .turn .a { white-space:pre-wrap; margin:0; line-height:1.6; }
+  .cite { background:#27424a; border:0; border-radius:3px; color:#bfe6f5; padding:0 5px; cursor:pointer; font-size:12px; }
+  .tag { display:inline-block; font-size:11px; padding:1px 6px; border-radius:3px; border:1px solid var(--line); color:var(--mute); margin-right:4px; }
+  .tag.refused { color:var(--warn); border-color:var(--warn); }
+  .check { margin:8px 0 0; padding:6px 10px; border-left:3px solid var(--warn); font-size:13px; }
+  .check ul { margin:2px 0 0; padding-left:18px; }
+  details { margin-top:8px; font-size:13px; }
+  summary { cursor:pointer; color:var(--link); }
+  blockquote { margin:6px 0; padding:6px 10px; border-left:3px solid var(--line); background:#272e30; white-space:pre-wrap; }
+  blockquote.hit { border-left-color:var(--accent); }
+  pre { margin:4px 0; padding:6px 8px; background:#272e30; overflow:auto; font-size:12px; white-space:pre-wrap; }
+  .meta { color:var(--mute); font-size:12px; margin-top:8px; }
+  .ask { padding:12px; display:grid; gap:8px; }
+  .ask .line { display:flex; gap:8px; flex-wrap:wrap; }
+  #q { flex:1; min-width:220px; padding:8px 10px; border:1px solid var(--line); border-radius:3px; background:#272e30; }
+  #q:focus { border-color:var(--accent); }
+  .ex { background:none; border:0; color:var(--link); padding:0; cursor:pointer; font-size:12px; text-align:left; }
+  .err { color:var(--warn); }
+  .pad { padding:10px 12px; }
+  [hidden] { display:none !important; }
 </style>
-
+</head>
+<body>
 <aside>
-  <h1>Filters</h1>
+  <h1>Business Location Advisor <small>Bahrain, IT8413 Group G1</small></h1>
   <div id="filters"></div>
+  <div class="side-actions">
+    <button class="btn" id="clear">Clear filters</button>
+    <button class="btn go" id="report">Download area profile</button>
+    <span class="err" id="report-msg" role="status"></span>
+  </div>
 </aside>
-
 <main>
-  <nav>
-    <button class="on" data-tab="dash">Dashboard</button>
-    <button data-tab="ask">Ask</button>
+  <nav role="tablist" aria-label="Sections">
+    <button role="tab" data-tab="dash" aria-selected="true">Dashboard</button>
+    <button role="tab" data-tab="ask" aria-selected="false">Ask</button>
+    <button role="tab" data-tab="log" aria-selected="false">Query log</button>
+    <button role="tab" data-tab="src" aria-selected="false">Sources</button>
+    <span class="model" id="model-line"></span>
   </nav>
 
   <section id="dash">
+    <p class="notice">Business locations go down to block level. Residents and land use are published <b>by governorate only</b>. Use this to compare governorates and see where similar businesses are registered. It cannot say whether a new business will succeed.</p>
     <div class="kpis" id="kpis"></div>
-    <div class="card"><h2 id="tsTitle">Over time</h2><canvas id="ts"></canvas></div>
-    <div class="row">
-      <div class="card"><h2 id="pieTitle">Composition</h2><canvas id="pie"></canvas></div>
-      <div class="card"><h2 id="barTitle">Top items</h2><canvas id="bar"></canvas></div>
-    </div>
+    <div class="card" id="c-trend"></div>
+    <div class="row"><div class="card" id="c-rates"></div><div class="card" id="c-land"></div></div>
+    <div class="row"><div class="card" id="c-types"></div><div class="card" id="c-map"></div></div>
+    <p class="fine" id="licence"></p>
   </section>
 
   <section id="ask" hidden>
-    <div class="card">
-      <input id="q" placeholder="Ask a question about the filtered data...">
-      <button class="go" id="send">Ask</button>
-      <div id="examples" style="margin-top:8px"></div>
-      <div id="answer"></div>
+    <div id="chat"></div>
+    <div class="card ask">
+      <div class="line">
+        <input id="q" maxlength="1000" aria-label="Your question" placeholder="Ask about businesses, governorates or licensing rules">
+        <button class="btn go" id="send">Ask</button>
+      </div>
+      <div class="line" style="align-items:center">
+        <label class="meta" style="margin:0">Configuration
+          <select id="mode">
+            <option value="v1">v1: the tool (functions + retrieval)</option>
+            <option value="v2">v2: v1 plus the intervention</option>
+            <option value="baseline">baseline: all sources in the prompt (slow)</option>
+            <option value="control">control: the model alone</option>
+          </select>
+        </label>
+        <button class="btn" id="new-session">New session</button>
+        <span class="meta" id="status" role="status" aria-live="polite" style="margin:0"></span>
+      </div>
+      <div class="line" id="examples"></div>
     </div>
+  </section>
+
+  <section id="log" hidden>
+    <div class="row" style="margin-top:0">
+      <div class="card"><header><h2>Model and settings</h2></header><div class="pad" id="cfg-model"></div></div>
+      <div class="card"><header><h2>Setting varied between v1 and v2</h2></header><div class="pad" id="cfg-varied"></div></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <header><h2>Every question asked</h2><a href="/api/log/download" style="font-size:12px">Download log (JSONL)</a></header>
+      <div class="scroll" style="max-height:none"><table id="log-table"></table></div>
+    </div>
+  </section>
+
+  <section id="src" hidden>
+    <div class="card"><header><h2>Sources</h2></header><div class="scroll" style="max-height:none"><table id="src-table"></table></div></div>
+    <div class="card" style="margin-top:12px"><header><h2>Limits of use</h2></header><p class="pad" id="limits" style="margin:0"></p></div>
+    <div class="card" style="margin-top:12px"><header><h2>Licence and attribution</h2></header><div class="pad" id="attrib"></div></div>
   </section>
 </main>
 
 <script>
-// ---- CSV (handles quoted fields) ----------------------------------------
-function parseCSV(text) {
-  const rows = [[]]; let cell = '', quoted = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (quoted) {
-      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else quoted = false; }
-      else cell += c;
-    } else if (c === '"') quoted = true;
-    else if (c === ',') { rows.at(-1).push(cell); cell = ''; }
-    else if (c === '\n') { rows.at(-1).push(cell); cell = ''; rows.push([]); }
-    else if (c !== '\r') cell += c;
+const $ = id => document.getElementById(id);
+const fmt = n => n == null ? 'n/a' : Number(n).toLocaleString('en-US');
+
+// All text reaches the page through textContent, so source data and model output can never run as HTML.
+function el(tag, props = {}, ...kids) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'class') node.className = v;
+    else if (k === 'on') node.addEventListener(v[0], v[1]);
+    else if (k.startsWith('aria') || k.startsWith('data')) node.setAttribute(k.replace(/([A-Z])/g, '-$1').toLowerCase(), v);
+    else node[k] = v;
   }
-  rows.at(-1).push(cell);
-  return rows.filter(r => r.length > 1 || r[0] !== '');
+  node.append(...kids.flat().filter(k => k != null));
+  return node;
+}
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  if (r.headers.get('content-type')?.includes('json')) {
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || r.statusText);
+    return data;
+  }
+  if (!r.ok) throw new Error(r.statusText);
+  return r;
 }
 
-const num = v => { const n = +String(v).replace(/[,\s]/g, ''); return v !== '' && isFinite(n) ? n : null; };
-const fmt = n => n.toLocaleString();
-
-let HEAD = [], DATA = [], DATECOL = -1, VALCOL = -1, CATS = [];
-const picked = {};
-
-fetch('data.csv').then(r => r.text()).then(text => {
-  const rows = parseCSV(text);
-  HEAD = rows[0].map(h => h.trim());
-  DATA = rows.slice(1);
-  detectColumns();
-  buildFilters();
-  render();
-});
-
-function detectColumns() {
-  const sample = DATA.slice(0, 50);
-  const isNum = i => sample.every(r => num(r[i]) !== null);
-  const isDate = i => /date|month|year|time|period/i.test(HEAD[i]) ||
-                      sample.every(r => /^\d{4}([-/]\d{1,2}){0,2}$/.test(r[i]));
-  DATECOL = HEAD.findIndex((_, i) => !isNum(i) && isDate(i));
-  if (DATECOL < 0) DATECOL = HEAD.findIndex((_, i) => isDate(i));
-  VALCOL = HEAD.findIndex((_, i) => i !== DATECOL && isNum(i));
-  CATS = HEAD.map((_, i) => i).filter(i =>
-    i !== DATECOL && i !== VALCOL && !isNum(i) &&
-    new Set(DATA.map(r => r[i])).size <= 60);
-}
-
-const uniq = i => [...new Set(DATA.map(r => r[i]))].sort();
-const years = () => [...new Set(DATA.map(r => String(r[DATECOL]).slice(0, 4)))].sort();
-const label = i => String(HEAD[i]).replace(/_/g, ' ');  // site_category -> site category
-
+// ---- filters -----------------------------------------------------------------------
+const GROUPS = [['governorate', 'Governorate'], ['category', 'Business category'], ['subtype', 'Business type'],
+                ['land_category', 'Land use'], ['nationality', 'Nationality'], ['sex', 'Sex']];
+let OPTS, filters = {};
 function buildFilters() {
-  const box = document.getElementById('filters');
-  const cols = DATECOL >= 0 ? [DATECOL, ...CATS] : CATS;
-  box.innerHTML = cols.map(i =>
-    '<h2>' + label(i) + '</h2><div class="chips" data-col="' + i + '">' +
-    (i === DATECOL ? years() : uniq(i))
-      .map(v => '<span class="chip" data-v="' + v + '">' + v + '</span>').join('') +
-    '</div>').join('');
-  box.onclick = e => {
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
-    chip.classList.toggle('on');
-    const group = chip.parentElement;
-    picked[group.dataset.col] = [...group.querySelectorAll('.chip.on')].map(c => c.dataset.v);
-    render();
-  };
+  const box = $('filters');
+  box.replaceChildren();
+  for (const [key, label] of GROUPS) {
+    const values = key === 'subtype' && filters.category?.length
+      ? filters.category.flatMap(c => OPTS.subtypes_by_category[c]).sort() : OPTS[key];
+    filters[key] = (filters[key] || []).filter(v => values.includes(v));
+    box.append(el('div', {class: 'fgroup'}, el('h2', {textContent: label}), el('div', {class: 'chips'},
+      values.map(v => el('button', {class: 'chip', textContent: v, ariaPressed: String(filters[key].includes(v)), on: ['click', () => {
+        filters[key] = filters[key].includes(v) ? filters[key].filter(x => x !== v) : [...filters[key], v];
+        buildFilters();
+        loadDashboard();
+      }]})))));
+    if (key === 'governorate') box.append(yearsGroup());
+  }
+}
+function yearsGroup() {
+  const pick = (key, dflt) => el('select', {ariaLabel: key === 'from_year' ? 'From year' : 'To year', on: ['change', e => {
+    filters[key] = e.target.value; loadDashboard();
+  }]}, OPTS.years.map(y => el('option', {value: y, textContent: y, selected: (filters[key] || dflt) === y})));
+  return el('div', {class: 'fgroup'}, el('h2', {textContent: 'Years'}),
+    el('div', {class: 'years'}, pick('from_year', OPTS.years[0]), 'to', pick('to_year', OPTS.years.at(-1))));
 }
 
-// empty selection on a column = that column is not filtered (i.e. "all")
-function filtered() {
-  return DATA.filter(r => Object.entries(picked).every(([col, vals]) =>
-    !vals.length || vals.includes(+col === DATECOL ? String(r[col]).slice(0, 4) : r[col])));
-}
-
-// ---- charts --------------------------------------------------------------
-const COLORS = ['#5fd38d', '#4dc4d8', '#f0a154', '#8e7cc3', '#e46b6b', '#d9c15e',
-                '#4a9fd4', '#59bfa8'];
-const GRID = '#3a4447', TICK = '#8a999d';
-Chart.defaults.color = TICK;
+// ---- charts ------------------------------------------------------------------------
+Chart.defaults.color = '#a3b1b5';
 Chart.defaults.font.size = 11;
-Chart.defaults.borderColor = GRID;
-
+Chart.defaults.borderColor = '#3a4447';
+Chart.defaults.animation = false;
+Chart.defaults.plugins.tooltip.backgroundColor = '#1d2224';
+Chart.defaults.plugins.tooltip.borderColor = '#3a4447';
+Chart.defaults.plugins.tooltip.borderWidth = 1;
+Chart.defaults.plugins.tooltip.titleColor = '#fff';
+Chart.defaults.plugins.tooltip.bodyColor = '#e6ecec';
 const charts = {};
 
-function draw(id, type, labels, values, titleId, titleText) {
-  document.getElementById(titleId).textContent = titleText;
-  if (charts[id]) charts[id].destroy();
-  charts[id] = new Chart(document.getElementById(id), {
-    type,
-    data: {
-      labels,
-      datasets: [{
-        label: HEAD[VALCOL], data: values,
-        backgroundColor: type === 'line' ? 'rgba(95,211,141,.13)' : COLORS,
-        borderColor: type === 'line' ? COLORS[0] : 'rgba(0,0,0,.25)',
-        borderWidth: type === 'line' ? 2 : 1,
-        fill: type === 'line', tension: 0.3, pointRadius: 0,
-        pointHoverRadius: 4, pointHoverBackgroundColor: COLORS[0],
-      }],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      indexAxis: type === 'bar' ? 'y' : 'x',
-      layout: { padding: { top: 14, right: 16, bottom: 10, left: 8 } },
-      scales: type === 'pie' ? {} : {
-        x: { grid: { color: GRID, drawBorder: false }, ticks: { color: TICK } },
-        y: { grid: { color: GRID, drawBorder: false }, ticks: { color: TICK } },
-      },
-      plugins: {
-        legend: { display: type === 'pie', position: 'right',
-                  labels: { color: TICK, boxWidth: 10, boxHeight: 10, padding: 10 } },
-        tooltip: { backgroundColor: '#1d2224', borderColor: GRID, borderWidth: 1,
-                   titleColor: '#fff', bodyColor: '#e6ecec', padding: 9 },
-      },
-    },
+// Direct labels at the end of each line, nudged apart so they do not collide.
+const lineLabels = {id: 'lineLabels', afterDatasetsDraw(chart) {
+  const {ctx} = chart, labels = [];
+  chart.data.datasets.forEach((ds, i) => {
+    const pts = chart.getDatasetMeta(i).data;
+    const last = pts.findLast(p => !p.skip);
+    if (last) labels.push({text: ds.label, colour: ds.borderColor, x: last.x, y: last.y});
   });
-}
-
-function groupSum(rows, col) {
-  const m = new Map();
-  for (const r of rows) m.set(r[col], (m.get(r[col]) || 0) + (num(r[VALCOL]) || 0));
-  return m;
-}
-
-function render() {
-  const rows = filtered();
-  const total = rows.reduce((s, r) => s + (num(r[VALCOL]) || 0), 0);
-
-  document.getElementById('kpis').innerHTML = [
-    ['Total ' + label(VALCOL), fmt(total)],
-    ['Rows in selection', fmt(rows.length)],
-    ['Distinct ' + (CATS.length ? label(CATS[0]) : 'items'), fmt(new Set(rows.map(r => r[CATS[0]])).size)],
-  ].map(kv => '<div class="card kpi"><span>' + kv[0] + '</span><b>' + kv[1] + '</b></div>').join('');
-
-  if (DATECOL >= 0) {
-    const m = groupSum(rows, DATECOL);
-    const keys = [...m.keys()].sort();
-    draw('ts', 'line', keys, keys.map(k => m.get(k)), 'tsTitle',
-         label(VALCOL) + ' by ' + label(DATECOL));
+  labels.sort((a, b) => a.y - b.y);
+  labels.forEach((l, i) => { if (i && l.y - labels[i - 1].y < 13) l.y = labels[i - 1].y + 13; });
+  ctx.save();
+  ctx.font = '11px system-ui';
+  ctx.textBaseline = 'middle';
+  for (const l of labels) {
+    ctx.fillStyle = l.colour; ctx.fillRect(l.x + 6, l.y - 1, 6, 2);
+    ctx.fillStyle = '#e6ecec'; ctx.fillText(l.text, l.x + 15, l.y);
   }
-  if (CATS.length) {
-    // fewest categories reads best as a pie, most as a ranked bar
-    const by = [...CATS].sort((a, b) => uniq(a).length - uniq(b).length);
-    const pieCol = by[0], barCol = by.at(-1);
-    const m = groupSum(rows, pieCol);
-    draw('pie', 'pie', [...m.keys()], [...m.values()], 'pieTitle',
-         'Composition by ' + label(pieCol));
-    const top = [...groupSum(rows, barCol)].sort((a, b) => b[1] - a[1]).slice(0, 10);
-    draw('bar', 'bar', top.map(x => x[0]), top.map(x => x[1]), 'barTitle',
-         'Top ' + label(barCol) + ' in selection');
-  }
+  ctx.restore();
+}};
+
+// One panel: title, what the filters did, a chart, and a table view of the same numbers.
+function panel(id, title, subtitle, config, rows, columns, tall) {
+  const host = $(id);
+  charts[id]?.destroy();
+  delete charts[id];
+  host.replaceChildren();
+  let showTable = false;
+  const hasData = rows.length > 0;
+  const plot = el('div', {class: 'plot' + (tall ? ' tall' : '')});
+  const table = el('div', {class: 'scroll', hidden: true}, el('table', {},
+    el('tr', {}, columns.map(c => el('th', {textContent: c.label, class: c.num ? 'n' : ''}))),
+    rows.map(r => el('tr', {}, columns.map(c => el('td', {textContent: c.num ? fmt(r[c.key]) : r[c.key], class: c.num ? 'n' : ''}))))));
+  const toggle = el('button', {textContent: 'Table', on: ['click', () => {
+    showTable = !showTable;
+    table.hidden = !showTable; plot.hidden = showTable;
+    toggle.textContent = showTable ? 'Chart' : 'Table';
+  }]});
+  host.append(el('header', {}, el('h2', {textContent: title}), hasData ? toggle : null), el('div', {class: 'sub', textContent: subtitle}));
+  if (!hasData) { host.append(el('div', {class: 'empty', textContent: 'No data for this selection.'})); return; }
+  const canvas = el('canvas', {role: 'img', ariaLabel: title + '. ' + subtitle});
+  plot.append(canvas);
+  host.append(plot, table);
+  charts[id] = new Chart(canvas, config);
 }
+const hbar = (labels, values, unit) => ({type: 'bar',
+  data: {labels, datasets: [{data: values, backgroundColor: '#2fa66a', borderRadius: 4, maxBarThickness: 18}]},
+  options: {indexAxis: 'y', maintainAspectRatio: false, plugins: {legend: {display: false},
+    tooltip: {callbacks: {label: c => fmt(c.parsed.x) + unit}}},
+    scales: {x: {beginAtZero: true, grid: {color: '#3a4447'}}, y: {grid: {display: false}}}}});
 
-// ---- tabs + Ask ----------------------------------------------------------
-document.querySelector('nav').onclick = e => {
-  const tab = e.target.dataset.tab;
-  if (!tab) return;
-  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b === e.target));
-  document.getElementById('dash').hidden = tab !== 'dash';
-  document.getElementById('ask').hidden = tab === 'dash';
-  // a canvas sized while hidden comes back 0px high, so redraw on the way in
-  if (tab === 'dash') render();
-  const ex = document.getElementById('examples');
-  if (!ex.innerHTML) {
-    ex.innerHTML = [
-      'Which ' + (CATS.length ? label(CATS[0]) : 'category') + ' has the highest total?',
-      'What is the trend over time?',
-      'Compare the top two items.',
-    ].map(t => '<span class="ex">' + t + '</span>').join(' &nbsp; ');
-  }
-};
-
-document.getElementById('examples').onclick = e => {
-  if (!e.target.classList.contains('ex')) return;
-  document.getElementById('q').value = e.target.textContent;
-  document.getElementById('send').click();
-};
-
-document.getElementById('send').onclick = async () => {
-  const q = document.getElementById('q'), out = document.getElementById('answer'),
-        btn = document.getElementById('send');
-  const question = q.value.trim();
-  if (!question) return;
-  out.textContent = 'Thinking...';
-  btn.disabled = true;
-  const rows = filtered();
+let dashSeq = 0, dashData = null;
+async function loadDashboard() {
+  const seq = ++dashSeq;
   try {
-    const res = await fetch('/ask', {
-      method: 'POST',
-      body: JSON.stringify({
-        question,
-        schema: HEAD.join(', '),
-        summary: rows.length + ' rows, total ' + label(VALCOL) + ' = ' +
-                 fmt(rows.reduce((s, r) => s + (num(r[VALCOL]) || 0), 0)),
-        rows,
-      }),
-    });
-    out.textContent = (await res.json()).answer;
-  } catch (err) {
-    out.textContent = 'Could not reach the server: ' + err.message;
+    const d = await api('/api/dashboard', {filters});
+    if (seq !== dashSeq) return;   // a newer filter click has already replaced this request
+    dashData = d;
+    if (!$('dash').hidden) renderDashboard();
+    renderAttribution(d.attribution);
+  } catch (e) {
+    $('kpis').replaceChildren(el('div', {class: 'card kpi err', textContent: e.message}));
   }
-  btn.disabled = false;
-};
+}
+function renderDashboard() {
+  const d = dashData, k = d.kpis, f = d.filters;
+  const said = (key, all) => f[key].length ? f[key].join(', ') : all;
+  const govs = said('governorate', 'all governorates');
+  const people = [said('nationality', ''), said('sex', '')].filter(Boolean).join(', ');
+  const biz = f.subtype.length ? f.subtype.join(', ') : said('category', 'all businesses');
 
-document.getElementById('q').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('send').click();
+  $('kpis').replaceChildren(...[
+    ['Businesses in selection', fmt(k.businesses), biz],
+    ['Residents', k.residents ? fmt(k.residents) : 'n/a', (people || 'all residents') + (k.residents_period ? ', ' + k.residents_period : '')],
+    ['Businesses per 10,000 residents', fmt(k.per_10k), govs],
+    ['Land', k.land_km2 == null ? 'n/a' : fmt(k.land_km2) + ' km²', said('land_category', 'all uses') + (k.land_period ? ', ' + k.land_period : ', none in these years')],
+  ].map(([label, value, note]) => el('div', {class: 'card kpi'}, el('span', {textContent: label}), el('b', {textContent: value}), el('small', {textContent: note}))));
+
+  // Change over time
+  const rows = d.trend.periods.map((p, i) => {
+    const row = {period: p};
+    d.trend.series.forEach(s => { row[s.governorate] = s.values[i]; });
+    return row;
+  });
+  panel('c-trend', 'Residents over time', `${govs}${people ? ', ' + people : ''}, ${f.from_year} to ${f.to_year}. Starts at 2012-06: earlier years used different governorates.`, {
+    type: 'line', plugins: [lineLabels],
+    data: {labels: d.trend.periods, datasets: d.trend.series.map(s => ({label: s.governorate, data: s.values,
+      borderColor: OPTS.gov_colours[s.governorate], backgroundColor: OPTS.gov_colours[s.governorate], borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0}))},
+    options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, layout: {padding: {right: 76}},
+      plugins: {legend: {position: 'top', align: 'start', labels: {boxWidth: 10, boxHeight: 10}},
+        tooltip: {callbacks: {label: c => `${c.dataset.label}: ${fmt(c.parsed.y)}`}}},
+      scales: {x: {grid: {display: false}}, y: {beginAtZero: true, grid: {color: '#3a4447'}, ticks: {callback: v => fmt(v)}}}},
+  }, rows, [{key: 'period', label: 'Period'}, ...d.trend.series.map(s => ({key: s.governorate, label: s.governorate, num: true}))]);
+
+  // Comparison between categories
+  const rates = d.rates.filter(r => r.per_10k != null);
+  panel('c-rates', 'Businesses per 10,000 residents', `${biz}, against ${people || 'all residents'} (${k.residents_period || 'no period'}).`,
+    hbar(rates.map(r => r.governorate), rates.map(r => r.per_10k), ' per 10,000'), rates,
+    [{key: 'governorate', label: 'Governorate'}, {key: 'businesses', label: 'Businesses', num: true}, {key: 'residents', label: 'Residents', num: true}, {key: 'per_10k', label: 'Per 10,000', num: true}]);
+
+  // Composition
+  const land = d.land.rows;
+  panel('c-land', 'Land use', `${govs}, ${said('land_category', 'all uses')}, ${d.land.period ? d.land.period + ' (one monthly snapshot)' : 'no snapshot in these years'}.` +
+    (d.land.missing.length ? ` Missing from source: ${d.land.missing.join('; ')}.` : ''),
+    hbar(land.map(r => r.category), land.map(r => r.km2), ' km²'), land,
+    [{key: 'category', label: 'Category'}, {key: 'km2', label: 'km²', num: true}, {key: 'share', label: '% of selection', num: true}]);
+
+  // Distribution of business types
+  const types = d.types.rows.slice();
+  if (d.types.other) types.push({subtype: `${d.types.other_types} other types`, count: d.types.other});
+  panel('c-types', 'Business types', `${govs}, ${biz}. Registration snapshot: some may have closed.`,
+    hbar(types.map(r => r.subtype), types.map(r => r.count), ' businesses'), types,
+    [{key: 'subtype', label: 'Type'}, {key: 'count', label: 'Businesses', num: true}]);
+
+  // Where they are
+  const groups = Object.keys(OPTS.gov_colours).filter(g => d.points.some(p => p.governorate === g));
+  panel('c-map', 'Where these businesses are', `${govs}, ${biz}. Busiest blocks: ` + (d.blocks.slice(0, 3).map(b => `${b.block} (${b.count})`).join(', ') || 'none') + '.', {
+    type: 'scatter',
+    data: {datasets: groups.map(g => ({label: g, backgroundColor: OPTS.gov_colours[g], borderColor: '#2e3639', borderWidth: .5, pointRadius: 3, pointHoverRadius: 6,
+      data: d.points.filter(p => p.governorate === g).map(p => ({x: p.lon, y: p.lat, p}))}))},
+    options: {maintainAspectRatio: false, plugins: {legend: {position: 'top', align: 'start', labels: {boxWidth: 10, boxHeight: 10}},
+      tooltip: {callbacks: {title: c => c[0].raw.p.name, label: c => `${c.raw.p.subtype}, block ${c.raw.p.block}, ${c.raw.p.governorate}`}}},
+      scales: {x: {min: 50.43, max: 50.70, title: {display: true, text: 'Longitude'}, grid: {color: '#3a4447'}},
+               y: {min: 25.80, max: 26.33, title: {display: true, text: 'Latitude'}, grid: {color: '#3a4447'}}}},
+  }, d.blocks, [{key: 'block', label: 'Block'}, {key: 'governorate', label: 'Governorate'}, {key: 'count', label: 'Businesses', num: true}], true);
+}
+function renderAttribution(a) {
+  $('licence').textContent = `${a.licence} ${a.analysis} Data extracted ${a.extracted.join(', ')}.`;
+  $('limits').textContent = a.limits;
+  $('attrib').replaceChildren(el('p', {textContent: a.licence, style: 'margin-top:0'}), el('p', {textContent: a.analysis}),
+    el('p', {textContent: 'Data extracted: ' + a.extracted.join(', '), style: 'margin-bottom:0'}));
+  $('src-table').replaceChildren(el('tr', {}, ['ID', 'Source', 'Publisher', 'Retrieved'].map(h => el('th', {textContent: h}))),
+    ...a.sources.map(s => el('tr', {}, el('td', {textContent: s.id}),
+      el('td', {}, el('a', {href: s.url, target: '_blank', rel: 'noopener', textContent: s.title})),
+      el('td', {textContent: s.publisher}), el('td', {textContent: s.retrieved}))));
+}
+
+// ---- ask ---------------------------------------------------------------------------
+const newId = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
+let sessionId = newId(), CONFIG;
+const EXAMPLES = ['Which governorate has the most coffee shops?', 'What must a business display at its place of business?',
+  'How much Agriculture land does the Northern governorate have?', 'Will a bakery succeed in Riffa?'];
+
+function answerNodes(text, onCite) {
+  // Same id pattern as CITATION in pipeline.py; split() puts the ids at the odd positions.
+  return text.split(/\b([A-Z]\d-[A-Z]\w*)\b/g).map((part, i) => i % 2
+    ? el('button', {class: 'cite', textContent: part, ariaLabel: 'Show passage ' + part, on: ['click', () => onCite(part)]})
+    : part);
+}
+function renderTurn(r) {
+  const details = {};
+  const cited = el('details', {}, el('summary', {textContent: `Cited passages (${r.citations.length})`}),
+    r.citations.map(c => {
+      const box = el('div', {}, el('p', {class: 'meta', textContent: `[${c.id}] ${c.document}${c.page ? `, page ${c.page}` : ''}, ${c.title}`}),
+        el('blockquote', {class: 'hit', textContent: c.text}), el('a', {href: c.url, target: '_blank', rel: 'noopener', textContent: 'Open the source', style: 'font-size:12px'}));
+      details[c.id] = box;
+      return box;
+    }));
+  const onCite = id => { cited.open = true; details[id]?.scrollIntoView({block: 'nearest'}); };
+  const searches = r.tool_calls.filter(c => c.name === 'search_documents');
+  const computed = r.tool_calls.filter(c => c.name !== 'search_documents');
+  const issues = r.verification?.issues || [];
+  const usage = `${r.model}, ${r.mode}, ${r.latency_s} s, ${fmt(r.tokens.total)} tokens, ${r.requests} request${r.requests === 1 ? '' : 's'}`;
+  return el('div', {class: 'card turn'},
+    el('p', {class: 'q', textContent: r.question}),
+    r.error ? el('p', {class: 'err', textContent: r.error}) : null,
+    el('p', {class: 'a'}, answerNodes(r.answer, onCite)),
+    r.refused ? el('p', {class: 'meta'}, el('span', {class: 'tag refused', textContent: 'Declined'}), 'The sources do not contain this answer.') : null,
+    issues.length ? el('div', {class: 'check'}, el('b', {textContent: 'Check this answer'}), el('ul', {}, issues.map(i => el('li', {textContent: i})))) : null,
+    r.citations.length ? cited : null,
+    searches.length ? el('details', {}, el('summary', {textContent: 'All retrieved passages'}), searches.map(s =>
+      el('div', {}, el('p', {class: 'meta', textContent: 'Search: ' + s.args.query}), (s.result.passages || []).map(p =>
+        el('blockquote', {class: r.citations.some(c => c.id === p.id) ? 'hit' : '', textContent: `[${p.id}] ${p.title}${p.page ? ` (page ${p.page})` : ''}: ${p.text}`}))))) : null,
+    computed.length ? el('details', {}, el('summary', {textContent: `Computed figures (${computed.length})`}), computed.map(c =>
+      el('pre', {textContent: `${c.name}(${JSON.stringify(c.args)})\n${JSON.stringify(c.result, null, 1)}`}))) : null,
+    el('p', {class: 'meta', textContent: usage}));
+}
+async function send(question) {
+  if (!question) return;
+  $('send').disabled = true;
+  const mode = $('mode').value;
+  $('status').textContent = mode === 'baseline' ? 'Working. Baseline is paced to the free-tier limit and can take over a minute.' : 'Working...';
+  try {
+    const r = await api('/api/ask', {question, mode, session_id: sessionId});
+    $('chat').append(renderTurn(r));
+    $('q').value = '';
+    $('status').textContent = '';
+    refreshConfig();
+  } catch (e) {
+    $('status').textContent = e.message;
+  }
+  $('send').disabled = false;
+  $('q').focus();
+}
+
+// ---- query log + configuration -----------------------------------------------------
+function keyValues(obj) {
+  return el('table', {}, Object.entries(obj).map(([k, v]) => el('tr', {}, el('th', {textContent: k}), el('td', {textContent: String(v)}))));
+}
+async function refreshConfig() {
+  CONFIG = await api('/api/config');
+  $('model-line').textContent = `Model: ${CONFIG.model}`;
+  const v2Ready = Object.keys(CONFIG.varied.changed).length > 0;
+  $('mode').querySelector('[value=v2]').disabled = !v2Ready;
+  $('cfg-model').replaceChildren(keyValues({model: CONFIG.model, ...CONFIG.versions.v1}),
+    el('p', {class: 'meta', textContent: `Requests logged today: ${CONFIG.requests_today} of ${CONFIG.limits.requests_per_day} (free-tier daily limit, resets midnight Pacific). ` + CONFIG.limits.source}));
+  if (!CONFIG.key_configured) $('cfg-model').append(el('p', {class: 'err', textContent: 'No API key found: the Ask tab will not work. See README.md.'}));
+  const changed = Object.entries(CONFIG.varied.changed);
+  $('cfg-varied').replaceChildren(changed.length
+    ? el('table', {}, el('tr', {}, ['Setting', 'v1', 'v2'].map(h => el('th', {textContent: h}))),
+        changed.map(([k, v]) => el('tr', {}, el('td', {textContent: k}), el('td', {textContent: String(v.v1)}), el('td', {textContent: String(v.v2)}))))
+    : el('p', {textContent: 'None yet: v2 is identical to v1 until the intervention is chosen.', style: 'margin-top:0'}),
+    el('p', {class: 'meta', textContent: CONFIG.varied.reason}));
+}
+async function refreshLog() {
+  const rows = await api('/api/log');
+  $('log-table').replaceChildren(el('tr', {}, ['Time (UTC)', 'Mode', 'Question', 'Answer', 'Citations', 'Latency', 'Tokens', 'Checks'].map((h, i) => el('th', {textContent: h, class: i === 5 || i === 6 ? 'n' : ''}))),
+    ...rows.map(r => el('tr', {}, el('td', {textContent: r.time.slice(0, 19).replace('T', ' ')}), el('td', {textContent: r.mode}),
+      el('td', {textContent: r.question}), el('td', {textContent: r.error ? 'ERROR: ' + r.error : (r.answer.length > 160 ? r.answer.slice(0, 160) + '...' : r.answer)}),
+      el('td', {textContent: r.citations.map(c => c.id).join(', ')}), el('td', {class: 'n', textContent: r.latency_s + ' s'}), el('td', {class: 'n', textContent: fmt(r.tokens.total)}),
+      el('td', {textContent: r.verification?.issues?.length ? r.verification.issues.length + ' flagged' : ''}))));
+  if (!rows.length) $('log-table').append(el('tr', {}, el('td', {colSpan: 8, textContent: 'No questions yet.'})));
+}
+
+// ---- wiring ------------------------------------------------------------------------
+document.querySelector('nav').addEventListener('click', e => {
+  const tab = e.target.dataset?.tab;
+  if (!tab) return;
+  document.querySelectorAll('nav [role=tab]').forEach(b => b.setAttribute('aria-selected', String(b === e.target)));
+  for (const id of ['dash', 'ask', 'log', 'src']) $(id).hidden = id !== tab;
+  // A canvas sized while hidden comes back 0px high, so the dashboard redraws on the way in.
+  if (tab === 'dash' && dashData) renderDashboard();
+  if (tab === 'log') { refreshConfig(); refreshLog(); }
 });
+$('clear').onclick = () => { filters = {}; buildFilters(); loadDashboard(); };
+$('send').onclick = () => send($('q').value.trim());
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') send($('q').value.trim()); });
+$('new-session').onclick = () => { sessionId = newId(); $('chat').replaceChildren(); $('status').textContent = 'New session started.'; };
+$('examples').append(...EXAMPLES.map(t => el('button', {class: 'ex', textContent: t, on: ['click', () => { $('q').value = t; send(t); }]})));
+$('report').onclick = async () => {
+  $('report-msg').textContent = '';
+  try {
+    const r = await api('/api/report', {filters, session_id: sessionId});
+    const link = el('a', {href: URL.createObjectURL(await r.blob()), download: 'area_profile.html'});
+    link.click();
+    URL.revokeObjectURL(link.href);
+  } catch (e) { $('report-msg').textContent = e.message; }
+};
+(async () => {
+  OPTS = await api('/api/options');
+  buildFilters();
+  await Promise.all([loadDashboard(), refreshConfig()]);
+})();
 </script>
+</body>
+</html>
