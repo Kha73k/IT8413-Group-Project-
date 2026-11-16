@@ -11,6 +11,7 @@ so evaluated results come from exactly the code the app runs. Every call is logg
 """
 import csv
 import io
+import itertools
 import json
 import re
 import threading
@@ -94,9 +95,15 @@ def varied_setting():
 def baseline_sources():
     """Every source as plain text: all data rows (coordinates and ids omitted) and every passage."""
     d = tools.data()
-    parts = []
-    for name, cols in (("businesses", ["name", "category", "subtype", "block", "governorate"]),
-                       ("population", ["period", "governorate", "nationality", "sex", "population"]),
+    # Businesses are grouped under one heading per category and governorate instead of repeating both on every
+    # row: same rows, fewer tokens. Gemini's free tier refused the prompt at 140K tokens (503) and took it at 131K.
+    key = lambda r: (r["category"], r["governorate"])
+    parts = ["--- businesses.csv (name,subtype,block; grouped by category and governorate) ---"]
+    for (category, governorate), rows in itertools.groupby(sorted(d["businesses"], key=key), key):
+        buf = io.StringIO()
+        csv.writer(buf).writerows([r["name"], r["subtype"], r["block"]] for r in rows)
+        parts.append(f"# category: {category}, governorate: {governorate}\n{buf.getvalue()}")
+    for name, cols in (("population", ["period", "governorate", "nationality", "sex", "population"]),
                        ("land_use", ["period", "governorate", "category", "area_m2"])):
         buf = io.StringIO()
         w = csv.writer(buf)
