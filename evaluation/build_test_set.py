@@ -2,7 +2,8 @@
 
 Data answers are computed here from sources/data/*.csv, so every figure is reproducible.
 Document answers carry verbatim quotes, and this script fails if a quote is not found in
-the named PDF, so a mis-cited article cannot slip through.
+the named document. That proves the quote exists, not that the answer says the same thing:
+only a member reading the source can check that.
 
 DRAFT: questions and answers were drafted with AI assistance (Claude). The PDF prohibits
 unverified ground truth, so a group member must check every row against the sources and
@@ -11,28 +12,21 @@ fill in verified_by / verified_on before the test set is submitted.
     python evaluation/build_test_set.py
 """
 import csv
-import logging
 import re
+import sys
 from collections import Counter
 from pathlib import Path
 
-import pypdf
-
 ROOT = Path(__file__).resolve().parent.parent
-DATA, DOCS = ROOT / "sources" / "data", ROOT / "sources" / "documents"
+sys.path.insert(0, str(ROOT))
+import retrieval  # noqa: E402
+
+DATA = ROOT / "sources" / "data"
 OUT = ROOT / "evaluation" / "test_set.csv"
 
 # Minimums from PDF 7.1; the held-out rules are from the same section.
 MINIMUMS = {"document": 6, "combined": 6, "unanswerable": 5, "counter-intuitive": 3, "lookup": 5}
 HELD_OUT_MINIMUMS = {"unanswerable": 3, "document": 3}
-
-DOC_FILES = {
-    "T1": "cr_law_27_2015.pdf",
-    "T2": "cr_regulation_126_2016.pdf",
-    "T3": "moic_procedures_guide_2022.pdf",
-    "T4": "sijilat_activity_5610-1_food_beverage.pdf",
-}
-
 
 # ---- data --------------------------------------------------------------------------
 
@@ -97,13 +91,12 @@ def pct(a, b):
 # ---- documents ---------------------------------------------------------------------
 
 def squash(text):
-    # PDF extraction splits words ("requir ed"), so compare with all whitespace removed.
+    # Text extraction splits words ("requir ed"), so compare with all whitespace removed.
     return re.sub(r"\s+", "", text).lower()
 
 
-logging.getLogger("pypdf").setLevel(logging.ERROR)
-DOC_TEXT = {k: squash("".join(p.extract_text() or "" for p in pypdf.PdfReader(DOCS / f).pages))
-            for k, f in DOC_FILES.items()}
+DOC_TEXT = {d["id"]: squash("".join(line for _, lines in retrieval.pages(d["local_file"]) for line in lines))
+            for d in retrieval.documents()}
 
 
 # ---- questions ---------------------------------------------------------------------
@@ -209,9 +202,9 @@ q("Q12", "held-out", "combined",
   "governorate with the fewest restaurants. Which governorate is that, and is the person allowed to register?",
   f"{fewest} ({rest_by_gov[fewest]} restaurants). No, they are not allowed. The owner of a one-person business "
   "must be at least 18 (Law No. 27 of 2015, Article 10), and Sijilat also says restaurant owners must be 18 or older.",
-  "restaurants_cafes.csv: count the rows in each governorate; Law 27/2015 Article 10, page 4; "
+  "restaurants_cafes.csv: count the rows in each governorate; Law 27/2015 Article 10; "
   "Sijilat page 5610-1, page 1, 'Business Requirements'",
-  quotes=[("T1", "provided that such nationals have reached the age of 18"),
+  quotes=[("T1", "provided that he is 18 years of age"),
           ("T4", "Age 18 and above")])
 
 nb, cap = population(LATEST_POP, "Capital", nationality="Non-Bahraini"), pop25["Capital"]
@@ -274,9 +267,9 @@ q("Q20", "dev", "unanswerable",
   "NOT IN THE SOURCES. The law says the yearly fees are set by a separate order from the Minister, and that "
   "order is not in our documents. The only fees our documents give are the municipal fee (10 dinars) and a "
   "printed copy of the certificate (2 dinars).",
-  "Law 27/2015 Article 28(a), page 10; Procedures Guide page 8 (page 9 of the PDF)",
-  quotes=[("T1", "Annual fees shall be imposed on the registration in the Commercial Register. Such fees shall be "
-                 "determined by an order from the Minister"),
+  "Law 27/2015 Article 28(a); Procedures Guide page 8 (page 9 of the PDF)",
+  quotes=[("T1", "Annual fees shall be levied on registration in the Commercial Register, to be specified in an order "
+                 "by the Minister"),
           ("T3", "Collection of the municipal fees (ten dinars)"),
           ("T3", "a hard copy of the certificate can be obtained for two dinars")],
   notes="Tests whether the model makes up a fee from memory. "
@@ -300,54 +293,64 @@ q("Q23", "held-out", "unanswerable",
   "What licences do I need to open a café that serves shisha?",
   "NOT IN THE SOURCES. None of our documents talks about shisha. The Sijilat page is about food and drink "
   "businesses in general and does not mention shisha.",
-  "All four documents (shisha is not mentioned)")
+  "All the documents (shisha is not mentioned)",
+  notes="Sijilat does have a separate page for this activity (5610-2, With Sheesha), but it is not one of our sources. "
+        "If the group adds it, this question stops being unanswerable and must be replaced.")
 
 # Document-only: the answer is in the documents.
 q("Q24", "dev", "document",
   "What is the punishment for running a business without the licence it needs?",
-  "Up to one year in prison and a fine of 1,000 to 5,000 Bahraini dinars, or one of the two. "
+  "Up to one year in prison and a fine of 1,000 to 100,000 Bahraini dinars, or one of the two. "
   "Another law can give a heavier punishment.",
-  "Law 27/2015 Article 27, point 3, page 9",
-  quotes=[("T1", "imprisonment for a term not exceeding one year and to a fine not less than One Thousand Bahraini "
-                 "Dinars and not exceeding Five Thousand Bahraini Dinars, or to either penalty"),
-          ("T1", "Practicing a Commercial Activity without obtaining a license from the Competent Bodies")])
+  "Law 27/2015 as amended by Legislative Decree 52/2018, Article 27, point 3",
+  quotes=[("T1", "a prison term of not more than one year and a fine of not less than BD 1,000 and not more than "
+                 "BD 100,000, or either of such penalties"),
+          ("T1", "Has undertaken a commercial activity without obtaining a license from the competent authorities")],
+  notes="The original 2015 text said 5,000. An answer of 5,000 comes from an old copy or from memory and is wrong.")
 
 q("Q25", "dev", "document",
   "If a business's registration details change, how many days does the owner have to report it?",
   "30 days from the day the change happened.",
-  "Law 27/2015 Article 11, page 4 (also the Implementing Regulation, Article 3, page 3)",
-  quotes=[("T1", "within thirty days from the date when the incident requiring such indication took place"),
+  "Law 27/2015 Article 11 (also the Implementing Regulation, Article 3, page 3)",
+  quotes=[("T1", "within 30 days from the date of the event requiring this"),
           ("T2", "within thirty days from the date when the incidence requiring Indication took place")])
 
 q("Q26", "dev", "document",
-  "How many partners can a limited liability company (WLL) have, and how much money does it need to start?",
+  "According to the MOIC Procedures Guide, how many partners can a limited liability company (WLL) have, and how "
+  "much money does it need to start?",
   "From 2 to 50 partners. There is no minimum capital (starting money), but each share must be worth at least 50 dinars.",
   "Procedures Guide, section 'Limited Liability Companies', page 10 (page 11 of the PDF)",
   quotes=[("T3", "The number of partners may not be less than two and may not exceed 50"),
           ("T3", "There is no minimum capital"),
-          ("T3", "The nominal value for each share may not be less than 50 BD")])
+          ("T3", "The nominal value for each share may not be less than 50 BD")],
+  notes="The guide is behind the law here: Commercial Companies Law Art 261, as amended by Legislative Decree 28/2020, "
+        "lets one person own a WLL. That law is not in our documents, so the question asks what the guide says.")
 
 q("Q27", "held-out", "document",
   "After registering a business, how long does the owner have to get the licences they need? "
   "And what happens if they do not get them in time?",
   "One year from the registration date. If the licences are not received within that year, the Ministry cancels "
   "the registration by itself, tells the owner, and publishes the decision on its website.",
-  "Law 27/2015 Articles 8-9, pages 3-4; Implementing Regulation Article 10 (page 5) and Article 16 (pages 7-8)",
-  quotes=[("T1", "within the time period specified in the Implementing Regulation"),
+  "Law 27/2015 Articles 8-9; Implementing Regulation Article 10 (page 5) and Article 16 (pages 7-8)",
+  quotes=[("T1", "within the period prescribed in the Implementing Regulations"),
           ("T2", "within one year from the Registration date, the approvals and licenses required"),
           ("T2", "it shall omit the Registration of its own accord")],
   notes="Needs two documents: the law says 'the period in the Regulation', and the Regulation gives the one year. "
-        "'Omit the registration' is the documents' word for cancelling it.")
+        "'Omit the registration' is the Regulation's word for cancelling it; the law says 'strike off'. "
+        "Decision 62/2024 replaced Regulation Article 16: its first paragraph is the same in substance, and it adds "
+        "yearly renewal after two years for activities such as factories, hospitals and schools (Arabic text only, "
+        "not in our English copy).")
 
 q("Q28", "held-out", "document",
   "What is the highest daily fine for a first break of the Commercial Register law, and what is the most "
   "the fine can add up to?",
   "Up to 1,000 dinars per day for a first break (up to 2,000 per day if it happens again within three years). "
-  "The total can never be more than 20,000 dinars.",
-  "Law 27/2015 Article 20(a), point 2, page 7",
-  quotes=[("T1", "shall not exceed One Thousand Bahraini Dinars per day when the breach is committed for the first time"),
-          ("T1", "Two Thousand Bahraini Dinars per day"),
-          ("T1", "the sum of the fine may not exceed Twenty Thousand Bahraini Dinars")])
+  "The total can never be more than 50,000 dinars.",
+  "Law 27/2015 as amended by Legislative Decree 52/2018, Article 20(a), point 2",
+  quotes=[("T1", "not exceeding BD 1,000 per day where the violation is being committed for the first time"),
+          ("T1", "BD 2,000 per day"),
+          ("T1", "the sum of the fine shall not exceed fifty thousand Bahraini Dinars")],
+  notes="The original 2015 text said 20,000. An answer of 20,000 comes from an old copy or from memory and is wrong.")
 
 q("Q29", "held-out", "document",
   "According to the MOIC Procedures Guide, who can register a one-person business (sole proprietorship)?",

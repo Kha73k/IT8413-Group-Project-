@@ -1,0 +1,7 @@
+chunking,k,questions,quotes,quotes_found,quote_recall,questions_complete,question_recall
+structure,2,6,13,8,0.615,4,0.667
+structure,4,6,13,8,0.615,4,0.667
+structure,6,6,13,8,0.615,4,0.667
+window,2,6,13,6,0.462,2,0.333
+window,4,6,13,6,0.462,2,0.333
+window,6,6,13,6,0.462,2,0.333
