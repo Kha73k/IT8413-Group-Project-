@@ -1,0 +1,131 @@
+<!-- Intro curtain, played once per visit. The script moves it out of Streamlit's page so a rerun cannot remove it
+     mid-animation. If the script never runs, the CSS hides it after a few seconds. -->
+<style>
+  #g1-curtain { --ease:cubic-bezier(.16,1,.3,1); position:fixed; inset:0; z-index:1000002; display:grid; place-items:center; color:#fff;
+    cursor:pointer; font-family:'Plus Jakarta Sans', Inter, system-ui, sans-serif; animation:g1-safety 0s 7s forwards; }
+  @keyframes g1-safety { to { visibility:hidden; } }
+  #g1-curtain .cols { position:absolute; inset:0; display:flex; }
+  /* One wide gradient (every data colour of the dashboard) split across five columns. */
+  #g1-curtain .cols i { flex:1; position:relative; overflow:hidden; background-size:500% 100%;
+    background-image:
+      radial-gradient(55% 75% at 0% 100%, #2fa66a 0%, transparent 65%),
+      radial-gradient(50% 70% at 30% 0%, #4a8bdc 0%, transparent 65%),
+      radial-gradient(45% 65% at 62% 100%, #d97706 0%, transparent 62%),
+      radial-gradient(50% 70% at 100% 0%, #c95f9c 0%, transparent 65%),
+      radial-gradient(40% 60% at 100% 100%, #e8603c 0%, transparent 62%),
+      linear-gradient(120deg, #0d9488 0%, #16a34a 22%, #2563eb 45%, #c9832a 68%, #c95f9c 85%, #e8603c 100%);
+    animation:g1-breathe 4s ease-in-out infinite alternate; }
+  #g1-curtain .cols i:nth-child(2) { background-position:25% 0; }
+  #g1-curtain .cols i:nth-child(3) { background-position:50% 0; }
+  #g1-curtain .cols i:nth-child(4) { background-position:75% 0; }
+  #g1-curtain .cols i:nth-child(5) { background-position:100% 0; }
+  #g1-curtain .cols i::after { content:''; position:absolute; inset:0; opacity:.09; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  @keyframes g1-breathe { from { filter:brightness(.92); } to { filter:brightness(1.12); } }
+  #g1-curtain .stage { position:relative; text-align:center; padding:0 24px; }
+  #g1-curtain .c-title { font:800 clamp(88px, 17vw, 240px)/.95 'Plus Jakarta Sans', Inter, sans-serif; letter-spacing:-.05em; margin:0; color:#fff; }
+  #g1-curtain .w { display:inline-block; overflow:hidden; vertical-align:top; padding:0 .02em .1em; }
+  #g1-curtain .ch, #g1-curtain .nm { display:inline-block; }
+  #g1-curtain .c-names { margin:6px 0 0; display:flex; justify-content:center; align-items:baseline; flex-wrap:wrap; gap:0 .45em;
+    font:700 clamp(30px, 4.6vw, 66px)/1.1 'Plus Jakarta Sans', Inter, sans-serif; letter-spacing:-.025em; color:rgba(255,255,255,.92); }
+  #g1-curtain .c-names i { font-style:normal; color:rgba(255,255,255,.45); }
+  #g1-curtain .c-foot { position:absolute; left:44px; right:44px; bottom:34px; display:grid; grid-template-columns:1fr auto 1fr;
+    align-items:center; gap:16px; font:600 clamp(16px, 1.8vw, 24px)/1.2 'Plus Jakarta Sans', Inter, sans-serif;
+    letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.92); }
+  #g1-curtain .c-right { text-align:right; }
+  #g1-curtain .c-progress { display:inline-flex; align-items:center; gap:12px; }
+  #g1-curtain .c-mark { position:relative; width:44px; height:44px; flex:none; }
+  /* Streamlit's sanitizer removes SVG, so the progress ring is a conic gradient cut to a thin band. */
+  @property --p { syntax:'\3c number>'; inherits:true; initial-value:0; }
+  #g1-curtain .c-ring { position:absolute; inset:0; border-radius:50%; background:conic-gradient(#fff calc(var(--p) * 1%), rgba(255,255,255,.22) 0);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 3px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 3px)); filter:drop-shadow(0 0 4px rgba(255,255,255,.8)); }
+  #g1-curtain .c-orbit { position:absolute; inset:0; }
+  #g1-curtain .c-orbit i { position:absolute; left:50%; top:2px; width:8px; height:8px; margin:-4px 0 0 -4px; border-radius:50%;
+    background:#fff; box-shadow:0 0 8px 3px rgba(255,255,255,.75); }
+  #g1-curtain .c-pct { min-width:3.2em; text-align:left; letter-spacing:.04em; font-variant-numeric:tabular-nums; }
+  html.g1-loading, html.g1-loading body { overflow:hidden; }
+  @media (max-width:700px) {
+    #g1-curtain .c-foot { left:20px; right:20px; bottom:22px; gap:8px; font-size:14px; grid-template-columns:1fr; justify-items:center; text-align:center; }
+    #g1-curtain .c-right { text-align:center; }
+    #g1-curtain .c-title { font-size:clamp(56px, 19vw, 240px); }
+    #g1-curtain .c-names { font-size:clamp(28px, 9vw, 66px); flex-direction:column; align-items:center; line-height:1.15; margin-top:12px; }
+    #g1-curtain .c-names i { display:none; }
+  }
+  @media (prefers-reduced-motion: reduce) { #g1-curtain { display:none; } }
+</style>
+<div id="g1-curtain" aria-hidden="true">
+  <div class="cols"><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="stage">
+    <h2 class="c-title">Group 1</h2>
+    <p class="c-names"><span class="w"><span class="nm">Khalifa</span></span><i>&middot;</i><span class="w"><span class="nm">Ahmed</span></span><i>&middot;</i><span class="w"><span class="nm">Rashed</span></span></p>
+  </div>
+  <div class="c-foot">
+    <span>IT8413 &middot; Group Project</span>
+    <span class="c-progress"><span class="c-mark"><span class="c-ring"></span><span class="c-orbit"><i></i></span></span><span class="c-pct"><span class="c-num">0</span>%</span></span>
+    <span class="c-right">Bahrain</span>
+  </div>
+</div>
+<script>
+(() => {
+  const c = document.getElementById('g1-curtain');
+  if (!c || c.dataset.started) return;
+  c.dataset.started = '1';
+  const root = document.documentElement;
+  // The page builds itself in once the curtain lifts (see app.css: body.g1-open).
+  const open = () => { document.body.classList.add('g1-open'); document.dispatchEvent(new Event('g1-open')); };
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { c.remove(); open(); return; }
+  document.body.append(c);
+  root.classList.add('g1-loading');
+  c.style.animation = 'none';   // the script runs, so the CSS safety timer is not needed
+
+  const ease = 'cubic-bezier(.16,1,.3,1)', easeIn = 'cubic-bezier(.7,0,.84,0)', inOut = 'cubic-bezier(.76,0,.24,1)';
+  const all = sel => [...c.querySelectorAll(sel)];
+  const anim = [];
+  const play = (els, frames, o, stagger = 0) => els.forEach((el, i) =>
+    anim.push(el.animate(frames, {easing: ease, fill: 'both', ...o, delay: (o.delay || 0) + i * stagger})));
+
+  // Each word in a clipping box, each letter in its own span. Built with DOM calls: Streamlit's sanitizer drops a
+  // script whose text contains anything that looks like a tag.
+  const title = c.querySelector('.c-title'), span = (cls, text) => Object.assign(document.createElement('span'), {className: cls, textContent: text});
+  title.replaceChildren(...title.textContent.split(' ').flatMap((w, i) => {
+    const box = span('w', '');
+    box.append(...[...w].map(ch => span('ch', ch)));
+    return i ? [' ', box] : [box];
+  }));
+
+  play(all('.cols i'), [{transform: 'scaleY(1.08)'}, {transform: 'none'}], {duration: 1400});
+  play(all('.ch'), [{transform: 'translateY(120%) rotate(8deg)'}, {transform: 'none'}], {duration: 900, delay: 200}, 50);
+  play(all('.nm'), [{transform: 'translateY(110%)'}, {transform: 'none'}], {duration: 800, delay: 550}, 120);
+  play(all('.c-names i'), [{opacity: 0}, {opacity: 1}], {duration: 500, delay: 750}, 120);
+  play(all('.c-foot > *'), [{opacity: 0, transform: 'translateY(14px)'}, {opacity: 1, transform: 'none'}], {duration: 600, delay: 400}, 80);
+
+  // Progress: the ring fills, a light orbits at its head, the percentage counts. A click hurries it.
+  const mark = c.querySelector('.c-mark'), num = c.querySelector('.c-num'), orbit = c.querySelector('.c-orbit');
+  const run = {duration: 1800, delay: 300, easing: 'cubic-bezier(.45,0,.55,1)', fill: 'both'};
+  const progress = mark.animate([{'--p': 0}, {'--p': 100}], run);
+  anim.push(progress, orbit.animate([{transform: 'rotate(0deg)'}, {transform: 'rotate(360deg)'}], run));
+  const count = setInterval(() => {
+    num.textContent = Math.round(parseFloat(getComputedStyle(mark).getPropertyValue('--p')) || 0);
+  }, 30);
+  c.addEventListener('click', () => anim.forEach(a => { a.playbackRate = 4; }), {once: true});
+  progress.finished.then(() => {
+    clearInterval(count);
+    num.textContent = '100';
+    mark.animate([{transform: 'scale(1)'}, {transform: 'scale(1.15)'}, {transform: 'scale(1)'}], {duration: 600});
+    return Promise.all(anim.map(a => a.finished));
+  }).then(exit);
+
+  function exit() {
+    const out = (els, frames, o, stagger = 0) => els.map((el, i) =>
+      el.animate(frames, {easing: easeIn, fill: 'forwards', ...o, delay: (o.delay || 0) + i * stagger}));
+    out(all('.c-orbit i'), [{transform: 'scale(1)', opacity: 1}, {transform: 'scale(3)', opacity: 0}], {duration: 500, easing: ease});
+    out(all('.ch'), [{transform: 'none'}, {transform: 'translateY(-120%)'}], {duration: 550}, 30);
+    out(all('.nm'), [{transform: 'none'}, {transform: 'translateY(-110%)'}], {duration: 500, delay: 50}, 50);
+    out(all('.c-names i, .c-foot'), [{opacity: 1}, {opacity: 0, transform: 'translateY(-12px)'}], {duration: 400});
+    const cols = out(all('.cols i'), [{transform: 'none'}, {transform: 'translateY(-100%)'}], {duration: 1050, delay: 400, easing: inOut}, 75);
+    setTimeout(open, 1000);
+    cols.at(-1).finished.then(() => { c.remove(); root.classList.remove('g1-loading'); });
+  }
+})();
+</script>

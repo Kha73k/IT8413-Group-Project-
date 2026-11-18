@@ -5,3 +5,4 @@ api.txt
 logs/
 evaluation/results/trial/
 sources/documents/
+.streamlit/secrets.toml

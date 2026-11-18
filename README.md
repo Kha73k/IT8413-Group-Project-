@@ -18,11 +18,12 @@ pip install -r requirements.txt
 the first line of a file called `api.txt` in this folder, or set the `GEMINI_API_KEY` environment
 variable. `api.txt` is ignored by git. Never put a key anywhere else.
 
-**2. Documents.** Download each document from the page linked in
-[`sources/SOURCES.csv`](sources/SOURCES.csv) into the path in its `local_file` column, under `sources/`. T4 is a web page,
-so print it to PDF from the browser. They are not in this repository because the publishers' terms do not allow
-republishing without permission. The dashboard and data questions work without them. The report, and any question that
-needs a document, stops with a message naming the missing file.
+**2. Documents.** They are not in this repository because the publishers' terms do not allow republishing without
+permission. When the app starts it fetches T1, T5, T6 and T7 from LLOC itself, and keeps each file only if it matches the
+copy the evaluation used byte for byte. MOIC's site refuses downloads by programs, so download T2 and T3 by hand from the
+pages linked in [`sources/SOURCES.csv`](sources/SOURCES.csv) into the path in their `local_file` column, under
+`sources/`. T4 is a web page: print it to PDF from the browser. The app answers from whatever documents it has and names
+the missing ones on the Ask tab. The evaluation scripts stop instead if any document is missing.
 
 **3. Prepare the data.** This writes `data/` from the raw files in `sources/data/`. The cleaning decisions
 are recorded in [`data/preparation_log.md`](data/preparation_log.md).
@@ -34,10 +35,16 @@ python prepare_data.py
 ## Run
 
 ```bash
-python app.py
+streamlit run streamlit_app.py
 ```
 
-Then open http://localhost:8000. The server only accepts connections from this computer.
+Then open http://localhost:8501. On Windows, double-click `start.bat` instead: it installs the requirements, starts the
+app and opens the browser.
+
+**Online (Streamlit Community Cloud).** Sign in at [share.streamlit.io](https://share.streamlit.io) with GitHub, choose
+*Create app*, pick this repository, branch `main`, main file `streamlit_app.py`, Python 3.12. Under *Advanced settings >
+Secrets* add one line, `GEMINI_API_KEY = "your key"`. The key stays in Streamlit's settings, never in the repository.
+The online copy has T1, T5, T6 and T7 only (see step 2) and keeps its query log only until the app restarts.
 
 - **Dashboard:** filters, summary figures, four charts and a map. Every panel has a table view.
 - **Ask:** questions in one session, with citations you can open and the functions that computed each figure.

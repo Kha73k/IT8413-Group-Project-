@@ -34,10 +34,16 @@ STOP = set("a an and are as at be by can for from has have how i if in is it its
            "then there these this to was what when which who will with within do does my me we our you your".split())
 
 
+# False everywhere except the online app, which says on the page which documents its server could not download.
+# The evaluation keeps it False, so a missing document stops a run instead of quietly changing its results.
+ALLOW_MISSING = False
+
+
 def documents():
     """Document collection from sources/SOURCES.csv (the single register of sources)."""
     with open(ROOT / "sources" / "SOURCES.csv", encoding="utf-8") as f:
-        return [r for r in csv.DictReader(f) if r["kind"] == "document"]
+        docs = [r for r in csv.DictReader(f) if r["kind"] == "document"]
+    return [d for d in docs if (ROOT / "sources" / d["local_file"]).exists()] if ALLOW_MISSING else docs
 
 
 def _clean(lines):
@@ -164,7 +170,7 @@ def index(chunking):
     passages = [p for doc in documents() for p in split(doc)]
     docs = [Counter(tokens(p["title"] + " " + p["text"])) for p in passages]
     df = Counter(t for d in docs for t in d)
-    avg = sum(sum(d.values()) for d in docs) / len(docs)
+    avg = sum(sum(d.values()) for d in docs) / max(len(docs), 1)
     return passages, docs, df, avg
 
 

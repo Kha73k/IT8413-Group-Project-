@@ -1,0 +1,24 @@
+# Look of the Streamlit app: the light design of the tutor preview (ink accent, one colour per governorate).
+[theme]
+base = "light"
+primaryColor = "#111827"
+backgroundColor = "#f4f6fa"
+secondaryBackgroundColor = "#eef1f5"
+textColor = "#111827"
+linkColor = "#2563eb"
+borderColor = "#e5e8ee"
+baseRadius = "8px"
+showSidebarBorder = true
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+headingFont = "'Plus Jakarta Sans':https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+codeFont = "'Geist Mono':https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap"
+# Capital, Muharraq, Northern, Southern first: the same governorate colours as everywhere else in the tool.
+chartCategoricalColors = ["#2fa66a", "#4a8bdc", "#c9832a", "#c95f9c", "#0d9488", "#e8603c", "#6b7487"]
+dataframeHeaderBackgroundColor = "#f4f6fa"
+
+[theme.sidebar]
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f4f6fa"
+
+[browser]
+gatherUsageStats = false

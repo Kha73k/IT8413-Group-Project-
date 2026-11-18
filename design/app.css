@@ -1,0 +1,98 @@
+/* Design layer for the Streamlit app: the look of the tutor preview. Colours, fonts and radii are in
+   .streamlit/config.toml; this file only adds what the theme cannot (banner, cards, KPI pictures, motion).
+   Selectors use our own classes and Streamlit's .st-key-NAME classes, never Streamlit's private class names.
+   Keep any less-than sign out of this file (even in comments): Streamlit's sanitizer would drop the whole stylesheet. */
+:root {
+  --ink:#111827; --mute:#4b5565; --soft:#6b7487; --line:rgba(17,24,39,.08);
+  --blue:#2563eb; --teal:#0d9488; --green:#16a34a; --amber:#d97706; --coral:#e8603c;
+  --shadow:0 1px 2px rgba(16,24,40,.04), 0 6px 18px rgba(16,24,40,.05);
+  --ease:cubic-bezier(.22,1,.36,1); --mono:'Geist Mono', ui-monospace, monospace;
+  --brand-grad:
+    radial-gradient(55% 75% at 0% 100%, #2fa66a 0%, transparent 65%),
+    radial-gradient(50% 70% at 30% 0%, #4a8bdc 0%, transparent 65%),
+    radial-gradient(45% 65% at 62% 100%, #d97706 0%, transparent 62%),
+    radial-gradient(50% 70% at 100% 0%, #c95f9c 0%, transparent 65%),
+    radial-gradient(40% 60% at 100% 100%, #e8603c 0%, transparent 62%),
+    linear-gradient(120deg, #0d9488 0%, #16a34a 22%, #2563eb 45%, #c9832a 68%, #c95f9c 85%, #e8603c 100%);
+}
+
+/* ---------- Banner ---------- */
+.g1-banner { position:relative; overflow:hidden; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  padding:26px 30px 24px; border-radius:18px; color:#fff; background:var(--brand-grad); box-shadow:0 8px 24px rgba(0,0,0,.08); }
+.g1-banner::after { content:''; position:absolute; inset:0; opacity:.08; mix-blend-mode:overlay; pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.g1-banner > * { position:relative; z-index:1; }
+.g1-banner .crumbs { margin:0 0 4px; font-size:13px; font-weight:500; opacity:.85; }
+.g1-banner h1 { margin:0; padding:0; color:#fff; font:600 34px/1.15 'Plus Jakarta Sans', Inter, sans-serif; letter-spacing:-.02em; }
+.g1-banner .meta { display:flex; gap:8px; flex-wrap:wrap; }
+.g1-pill { display:inline-flex; align-items:center; gap:7px; padding:7px 12px; border-radius:8px; font-size:12.5px; font-weight:600;
+  background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.28); backdrop-filter:blur(6px); color:#fff; }
+.g1-pill .dot { width:7px; height:7px; border-radius:50%; background:#86efac; }
+.g1-pill.mono { font-family:var(--mono); font-weight:500; }
+
+/* ---------- Sidebar title ---------- */
+.g1-brand { display:grid; grid-template-columns:auto 1fr; column-gap:12px; align-items:center; margin:0 0 4px; }
+.g1-brand::before { content:''; grid-row:span 2; width:36px; height:36px; border-radius:10px; background:var(--brand-grad); }
+.g1-brand b { font:700 15px/1.3 'Plus Jakarta Sans', Inter, sans-serif; color:var(--ink); }
+.g1-brand small { color:var(--soft); font-size:12px; font-weight:500; }
+
+/* ---------- Notice ---------- */
+.g1-notice { margin:0; padding:12px 16px; border-radius:8px; border-left:3px solid var(--ink); background:#fff;
+  color:var(--mute); font-size:13.5px; line-height:1.55; box-shadow:var(--shadow); }
+.g1-notice b { color:var(--ink); }
+
+/* ---------- Cards: white, soft shadow, a coloured line under each title ---------- */
+[class*="st-key-card_"] { background:#fff; border-color:#edf0f4 !important; border-radius:14px !important; box-shadow:var(--shadow); }
+.g1-title h3 { position:relative; display:inline-block; margin:0 0 12px; padding:0; font:600 15px/1.3 'Plus Jakarta Sans', Inter, sans-serif; color:var(--ink); }
+.g1-title h3::after { content:''; position:absolute; left:0; right:0; bottom:-6px; height:2px; border-radius:2px; background:var(--card-c, var(--green)); }
+.g1-title p { margin:4px 0 0; color:var(--mute); font-size:12.5px; line-height:1.5; }
+
+/* ---------- KPI cards: label, coloured figure, note, and a small picture on the right ---------- */
+.g1-kpis { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:16px; }
+.g1-kpis .kpi { display:grid; grid-template-columns:1fr auto; column-gap:12px; padding:18px 20px; background:#fff; border:1px solid #edf0f4;
+  border-radius:14px; box-shadow:var(--shadow); min-width:0; }
+.kpi > span, .kpi > b, .kpi > small { grid-column:1; min-width:0; }
+.kpi > span { color:var(--mute); font-size:13px; font-weight:500; }
+.kpi > b { font:600 26px/1.25 'Plus Jakarta Sans', Inter, sans-serif; letter-spacing:-.03em; color:var(--k); margin:4px 0 2px;
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+.kpi > b .unit { font-size:.55em; margin-left:3px; letter-spacing:0; opacity:.8; }
+.kpi > small { color:var(--soft); font-size:12px; overflow:hidden; text-overflow:ellipsis; }
+.k0 { --k:var(--blue); } .k1 { --k:var(--teal); } .k2 { --k:var(--green); } .k3 { --k:var(--amber); }
+.kpi-viz { grid-column:2; grid-row:1 / span 3; align-self:center; display:grid; justify-items:center; gap:3px; color:var(--k); }
+.kpi-viz em { font-style:normal; font:500 11px var(--mono); color:var(--soft); }
+/* Streamlit's sanitizer removes SVG: the ring is a conic gradient cut to a band, the icon a CSS mask. */
+@property --s { syntax:'\3c number>'; inherits:true; initial-value:0; }
+.ring { width:48px; height:48px; position:relative; display:grid; place-items:center; }
+.ring::before { content:''; position:absolute; inset:0; border-radius:50%; background:conic-gradient(var(--k) calc(var(--s) * 1%), #eef1f5 0);
+  -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 4.5px), #000 calc(100% - 4px));
+  mask:radial-gradient(farthest-side, transparent calc(100% - 4.5px), #000 calc(100% - 4px)); }
+.ico { width:20px; height:20px; background:currentColor; -webkit-mask:var(--icon) center / contain no-repeat; mask:var(--icon) center / contain no-repeat; }
+.ico-0 { --icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 9l1.6-5h14.8L21 9M4 9v11h16V9M3 9h18M9.5 20v-6h5v6'/%3E%3C/svg%3E"); }
+.ico-1 { --icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='8' r='3.5'/%3E%3Cpath d='M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5'/%3E%3Ccircle cx='17' cy='9' r='2.5'/%3E%3Cpath d='M16.6 14.6c2.4.3 4.2 2 4.9 4.9'/%3E%3C/svg%3E"); }
+.ico-3 { --icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14'/%3E%3C/svg%3E"); }
+.bars { display:flex; align-items:flex-end; gap:5px; height:40px; }
+.bars i { width:8px; border-radius:3px 3px 1px 1px; transform-origin:bottom; }
+@media (max-width:1200px) { .g1-kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+@media (max-width:640px) {
+  .g1-kpis { grid-template-columns:1fr; gap:12px; }
+  .g1-banner { padding:20px; border-radius:16px; }
+  .g1-banner h1 { font-size:26px; }
+}
+
+/* ---------- Motion: one easing, a single fade-rise once the curtain lifts, rings draw ---------- */
+@keyframes g1-rise { from { opacity:0; transform:translateY(10px); } }
+@keyframes g1-ring { from { --s:0; } }
+@keyframes g1-grow { from { transform:scaleY(0); } }
+body.g1-open .g1-banner, body.g1-open .g1-notice, body.g1-open .g1-kpis .kpi, body.g1-open [class*="st-key-card_"] {
+  animation:g1-rise .5s var(--ease) backwards; }
+body.g1-open .g1-notice { animation-delay:.05s; }
+body.g1-open .g1-kpis .kpi:nth-child(1) { animation-delay:.1s; }
+body.g1-open .g1-kpis .kpi:nth-child(2) { animation-delay:.15s; }
+body.g1-open .g1-kpis .kpi:nth-child(3) { animation-delay:.2s; }
+body.g1-open .g1-kpis .kpi:nth-child(4) { animation-delay:.25s; }
+body.g1-open [class*="st-key-card_"] { animation-delay:.3s; }
+body.g1-open .ring { animation:g1-ring 1.1s var(--ease) .2s backwards; }
+body.g1-open .bars i { animation:g1-grow .5s var(--ease) backwards; }
+body.g1-open .bars i:nth-child(2) { animation-delay:.05s; } body.g1-open .bars i:nth-child(3) { animation-delay:.1s; }
+body.g1-open .bars i:nth-child(4) { animation-delay:.15s; }
+@media (prefers-reduced-motion: reduce) { body.g1-open * { animation:none !important; } }
