@@ -26,8 +26,6 @@ DESIGN = ROOT / "design"
 MAX_QUESTION = 1000
 EXAMPLES = ["Which governorate has the most coffee shops?", "What must a business display at its place of business?",
             "How much Agriculture land does the Northern governorate have?", "Will a bakery succeed in Riffa?"]
-MODES = {"v1": "v1: the tool (functions + retrieval)", "v2": "v2: v1 plus the intervention",
-         "baseline": "baseline: all sources in the prompt (slow)", "control": "control: the model alone"}
 GROUPS = [("governorate", "Governorate"), ("category", "Business category"), ("subtype", "Business type"),
           ("land_category", "Land use"), ("nationality", "Nationality"), ("sex", "Sex")]
 PANEL = {"trend": "#2563eb", "rates": "#16a34a", "land": "#d97706", "types": "#e8603c", "map": "#0d9488"}
@@ -364,11 +362,11 @@ def new_session():
 
 
 with tab_ask:
-    v2_ready = bool(pipeline.varied_setting()["changed"])
-    modes = [m for m in MODES if m != "v2" or v2_ready]
-    with st.container(horizontal=True, vertical_alignment="bottom"):
-        mode = st.selectbox("Configuration", modes, format_func=MODES.get, key="mode", width=320,
-                            help=None if v2_ready else "v2 is set after the v1 failure analysis.")
+    # The page always answers with the final version of the tool: v2 once the intervention is set, v1 until then.
+    # Control and baseline are evaluation runs only (evaluation/run_eval.py); the Query log tab shows the settings.
+    mode = "v2" if pipeline.varied_setting()["changed"] else "v1"
+    with st.container(horizontal=True, vertical_alignment="center"):
+        st.caption(f"Answers by {cfg['model']}, tool version {mode}. Settings are on the Query log tab.")
         st.button("New session", on_click=new_session, icon=":material/restart_alt:")
     if not key_configured():
         st.error("No Gemini API key found, so questions cannot be answered. See README.md.", icon=":material/key_off:")
@@ -387,9 +385,7 @@ with tab_ask:
             show_turn(r)
         if prompt and prompt.strip():
             suggestions.empty()
-            wait = "Working. Baseline is paced to the free-tier limit and can take over a minute." \
-                if mode == "baseline" else "Working..."
-            with st.spinner(wait):
+            with st.spinner("Working..."):
                 record = pipeline.answer(prompt.strip(), turns, mode, st.session_state.session_id,
                                          run="app" if not missing_docs else "app-online")
             show_turn(record)
